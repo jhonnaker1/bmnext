@@ -1,6 +1,6 @@
 // File access on the SD card, for the code from BMC64: the web UI, the log
 // file and the Wi-Fi checks. Paths are absolute on the card
-// ("/bmatarist.cfg"); the card's volume is added here.
+// ("/bmnext.cfg"); the card's volume is added here.
 //
 // sd_fs_fatfs.c implements this on the Pi with FatFs; tools/sdcard/
 // sd_fs_posix.c implements it on a folder of a PC for the tests.

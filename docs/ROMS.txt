@@ -1,0 +1,20 @@
+NeXT ROMs
+=========
+
+A NeXT starts from its ROM, which tests the machine and then boots from a
+disk (or shows its ROM monitor, the "NeXT>" prompt, when there is none).
+NeXT's ROMs are copyrighted and not included with BMNeXT: copy images of
+your own machine's into this folder.
+
+Which ROM for which machine:
+  NeXT Computer (68030)        a 64K ROM, 0.8 to 1.2 (Rev_1.0_v41.BIN)
+  NeXTcube, NeXTstation        a 128K ROM 2.x (Rev_2.5_v66.BIN)
+  The Turbos and Color models  a 128K ROM 3.x (Rev_3.3_v74.BIN); the
+                               NeXTstation Color can use 2.5 too
+
+BMNeXT finds them by their size; a 128K ROM whose name has "3." or "3_"
+in it (or "v74") is taken for a Turbo's. Another can be chosen in the menu
+(F12, Machine, ROM). Any file ending .bin or .rom works.
+
+NeXTSTEP and OPENSTEP go on a disk image (a SCSI hard disk, in the disks
+folder): choose it in the menu (F12, Disks, SCSI Disk 0).

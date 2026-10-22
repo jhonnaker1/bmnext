@@ -5,12 +5,12 @@
  * Everything it needs from the hardware goes through these functions, which
  * are implemented in src/kernel.cpp.
  *
- * This file is part of BMAtariST, a bare metal Atari ST emulator for
+ * This file is part of BMNeXT, a bare metal NeXT emulator for
  * the Raspberry Pi. See LICENSE for licensing details.
  */
 
-#ifndef BMATARIST_HOST_H_
-#define BMATARIST_HOST_H_
+#ifndef BMNEXT_HOST_H_
+#define BMNEXT_HOST_H_
 
 #include <stdint.h>
 
@@ -24,7 +24,7 @@ const char *host_option(const char *name, const char *default_value);
 int host_option_int(const char *name, int default_value);
 double host_option_double(const char *name, double default_value);
 /* Changes a setting, which then wins over cmdline.txt; host_options_save()
-   writes the settings to bmatarist.cfg on the SD card. Both return 0 on
+   writes the settings to bmnext.cfg on the SD card. Both return 0 on
    failure. */
 int host_option_set(const char *name, const char *value);
 int host_options_save(void);
@@ -169,7 +169,7 @@ void host_log(const char *message);
 /* Where the log goes (enable_logging=off|uart|file). */
 #define HOST_LOG_OFF  0
 #define HOST_LOG_UART 1  /* serial port, GPIO14/15 at 115200 */
-#define HOST_LOG_FILE 2  /* serial port and /bmatarist.log on the SD card */
+#define HOST_LOG_FILE 2  /* serial port and /bmnext.log on the SD card */
 int host_log_destination(void);
 /* Changes it at once. Returns 0 if the log file cannot be opened. */
 int host_set_log_destination(int destination);
@@ -178,4 +178,4 @@ int host_set_log_destination(int destination);
 }
 #endif
 
-#endif /* BMATARIST_HOST_H_ */
+#endif /* BMNEXT_HOST_H_ */

@@ -1,42 +1,66 @@
 /*
- * posix_extra.c - POSIX functions Hatari uses that circle-newlib lacks.
+ * posix_extra.c - POSIX functions Previous uses that circle-newlib lacks.
  *
- * scandir(), alphasort(): Hatari's GEMDOS drive (a folder on the SD card
- * as the ST's hard disk, gemdos.c) lists folders with them. Hatari's own
- * versions (scandir.c) need dirent's d_reclen, which newlib's doesn't have.
+ * timegm(): the NeXT's real time clock is set from the Pi's time, and read
+ * back, in UTC (timing.c).
  *
- * utime(): the GEMDOS drive sets a file's date when the ST does (Fdatime).
- * FatFs could, but Circle's file system calls don't offer it: the date is
- * left as it is, which only changes what the ST's desktop shows.
+ * scandir(), alphasort(): listing folders. Previous's own versions
+ * (scandir.c) need dirent's d_reclen, which newlib's doesn't have.
  *
- * access(): the GEMDOS drive checks files can be read and written.
- * Everything on the SD card can be (from BMCoco).
- *
- * chmod(): the GEMDOS drive makes a file read only when the ST asks
- * (Fattrib). newlib declares it but Circle doesn't have it; it fails, and
- * Hatari tells the ST so.
+ * utime(), access(), chmod(): file dates, checks and permissions. FatFs
+ * could set a file's date, but Circle's file system calls don't offer it;
+ * everything on the SD card can be read and written (from BMCoco); a file
+ * can't be made read only.
  *
  * Only the Pi needs these: the PC test harness (tools/hostsim) has its C
  * library's. On a Mac, the harness needs Paths_GetMacScreenShotDir()
- * instead, which Hatari's Mac front end has (gui-osx/paths.m).
+ * instead, which Previous's Mac front end has (gui-osx/paths.m).
  *
- * This file is part of BMAtariST, a bare metal Atari ST emulator for the
+ * This file is part of BMNeXT, a bare metal NeXT emulator for the
  * Raspberry Pi. See LICENSE for licensing details.
  */
 
-#ifndef BMATARIST_HOST_LIBC
+#ifndef BMNEXT_HOST_LIBC
 
 #include <dirent.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 #include <utime.h>
 
 int alphasort(const struct dirent **a, const struct dirent **b)
 {
 	return strcmp((*a)->d_name, (*b)->d_name);
+}
+
+/* Days since 1970-01-01 of a date in the proleptic Gregorian calendar
+   (Howard Hinnant's days_from_civil). */
+static long days_from_civil(long y, unsigned m, unsigned d)
+{
+	long era;
+	unsigned yoe, doy, doe;
+	y -= m <= 2;
+	era = (y >= 0 ? y : y - 399) / 400;
+	yoe = (unsigned) (y - era * 400);
+	doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+	doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+	return era * 146097 + (long) doe - 719468;
+}
+
+time_t timegm(struct tm *tm)
+{
+	long year = tm->tm_year + 1900L + tm->tm_mon / 12;
+	int mon = tm->tm_mon % 12;
+	if (mon < 0) {
+		mon += 12;
+		year--;
+	}
+	return (time_t) days_from_civil(year, (unsigned) mon + 1, 1) * 86400
+	       + (time_t) (tm->tm_mday - 1) * 86400 + tm->tm_hour * 3600L
+	       + tm->tm_min * 60L + tm->tm_sec;
 }
 
 int scandir(const char *dirname, struct dirent ***namelist,
@@ -110,11 +134,11 @@ int chmod(const char *path, mode_t mode)
 
 #elif defined(__APPLE__)
 
-/* Screenshots go to the folder Hatari runs in (paths.c, when this is NULL). */
+/* Screenshots go to the folder Previous runs in (paths.c, when this is NULL). */
 char *Paths_GetMacScreenShotDir(void);
 char *Paths_GetMacScreenShotDir(void)
 {
 	return NULL;
 }
 
-#endif /* BMATARIST_HOST_LIBC */
+#endif /* BMNEXT_HOST_LIBC */

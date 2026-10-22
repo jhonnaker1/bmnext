@@ -1,8 +1,8 @@
 crt-pi
 ======
 
-The CRT effect in BMAtariST is the crt-pi shader by davej, from the copy
-BMC64 ships (src/crt_pi_idx.c, src/crt_pi_rgb.c). BMAtariST uses it on the
+The CRT effect in BMNeXT is the crt-pi shader by davej, from the copy
+BMC64 ships (src/crt_pi_idx.c, src/crt_pi_rgb.c). BMNeXT uses it on the
 ARM (src/av/scaler.cpp) and, compiled for the Raspberry Pi 4 and Pi 5's
 3D GPU, from tools/v3dshader/crt.frag (src/v3d/shader_crt*.h,
 shader71_crt*.h). Its notice:

@@ -39,7 +39,7 @@ jobs:
       - name: Cache Arm GNU Toolchain
         uses: actions/cache@v6
         with:
-          path: ~/.cache/bmatarist/toolchains
+          path: ~/.cache/bmnext/toolchains
           key: arm-gnu-toolchain-15.2.rel1-arm-none-eabi-aarch64-none-elf
 
       - name: Build
@@ -49,12 +49,12 @@ jobs:
         run: ./check_release_files.sh --release
 
       - name: Zip the SD card files
-        run: cd build/sdcard && zip -r "../../bmatarist-${{ github.ref_name }}.zip" .
+        run: cd build/sdcard && zip -r "../../bmnext-${{ github.ref_name }}.zip" .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          name: BMAtariST ${{ github.ref_name }}
-          files: bmatarist-${{ github.ref_name }}.zip
+          name: BMNeXT ${{ github.ref_name }}
+          files: bmnext-${{ github.ref_name }}.zip
           generate_release_notes: false
           draft: true

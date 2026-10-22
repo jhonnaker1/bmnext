@@ -3,7 +3,7 @@
 //
 // The Pi 5's direct display driver's picture: two 32-bit pixel buffers,
 // shown in turn as one HVS plane, scaled to its place on the screen by the
-// BCM2712's HVS (hvs.h). BMAtariST draws a frame into the buffer not on
+// BCM2712's HVS (hvs.h). BMNeXT draws a frame into the buffer not on
 // screen, then flips. The same interface as the Pi 4's (src/kms/pi4/).
 //
 // The buffers are in the ARM's memory when the HVS reads the firmware's
@@ -20,12 +20,12 @@
 //    semaphore.cpp: Circle's VCHIQ waits yield, which is how the Pi 3 runs
 //    them while it waits for a frame.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_KMS_PI5_DISPLAY_H_
-#define BMATARIST_KMS_PI5_DISPLAY_H_
+#ifndef BMNEXT_KMS_PI5_DISPLAY_H_
+#define BMNEXT_KMS_PI5_DISPLAY_H_
 
 #include "hvs.h"
 #include "modeset.h"

@@ -253,7 +253,7 @@ async function editFile(path, name) {
   if (!result.saved) return;
   if (result.rebooting) {
     $("fb-status").className = "msg";
-    $("fb-status").textContent = "Saved " + name + ". BMAtariST is rebooting.";
+    $("fb-status").textContent = "Saved " + name + ". BMNeXT is rebooting.";
     return;
   }
   await loadDir(fbPath);

@@ -1,7 +1,7 @@
 Mesa notices
 ============
 
-BMAtariST's Raspberry Pi 4 and Pi 5 GPU code adapts material from the Mesa
+BMNeXT's Raspberry Pi 4 and Pi 5 GPU code adapts material from the Mesa
 3D graphics library's Broadcom V3D drivers (https://mesa3d.org/). Those
 Mesa files are under the MIT licence below. Each file's copyright notice is
 listed with it, copied from Mesa 25.2.8; the files' own notices apply.

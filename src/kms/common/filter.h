@@ -12,12 +12,12 @@
 // uses the four i = p, p + 8, p + 16, p + 24 for its phase p (0..7), which
 // are made to add up to 256. The HVS takes them as 11 words.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_KMS_COMMON_FILTER_H_
-#define BMATARIST_KMS_COMMON_FILTER_H_
+#ifndef BMNEXT_KMS_COMMON_FILTER_H_
+#define BMNEXT_KMS_COMMON_FILTER_H_
 
 #include <stdint.h>
 

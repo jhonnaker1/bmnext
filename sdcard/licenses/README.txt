@@ -1,13 +1,12 @@
 Licences
 ========
 
-BMAtariST itself is under the GNU General Public License version 3
+BMNeXT itself is under the GNU General Public License version 3
 (LICENSE.txt in the root of the card). It includes code from other
 projects; this folder has their notices and licences:
 
-  hatari.txt      The Hatari emulator (GPL version 2 or later), with the
+  previous.txt    The Previous emulator (GPL version 2 or later), with the
                   SoftFloat notice for its floating point emulation.
-  emutos.txt      EmuTOS, the free TOS in the tos folder (GPL version 2).
   zlib.txt        The zlib compression library (zlib licence).
   crt-pi.txt      The crt-pi CRT shader by davej (GPL version 2 or later).
   Mesa-MIT.txt    Material from the Mesa 3D graphics library's Broadcom
@@ -27,5 +26,5 @@ projects; this folder has their notices and licences:
 The Raspberry Pi firmware and Wi-Fi firmware licences are with the
 firmware (LICENCE.broadcom, COPYING.linux, and the firmware folder).
 
-All third-party software in BMAtariST:
-https://github.com/jhonnaker1/bmatarist/blob/main/docs/THIRD_PARTY.md
+All third-party software in BMNeXT:
+https://github.com/jhonnaker1/bmnext/blob/main/docs/THIRD_PARTY.md

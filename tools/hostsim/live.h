@@ -1,12 +1,12 @@
 /*
  * live.h - the host simulator's live mode (see live.c).
  *
- * This file is part of BMAtariST, a bare metal Atari ST emulator for
+ * This file is part of BMNeXT, a bare metal NeXT emulator for
  * the Raspberry Pi. See LICENSE for licensing details.
  */
 
-#ifndef BMATARIST_LIVE_H_
-#define BMATARIST_LIVE_H_
+#ifndef BMNEXT_LIVE_H_
+#define BMNEXT_LIVE_H_
 
 #include <stdint.h>
 

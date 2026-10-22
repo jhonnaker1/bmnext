@@ -3,21 +3,21 @@
 //
 // The direct display driver's use of the HVS: finds the channel that feeds
 // HDMI0 or, if none does, HDMI1, and shows planes on it through display
-// lists BMAtariST writes itself, scaled by the HVS with its own filter
+// lists BMNeXT writes itself, scaled by the HVS with its own filter
 // kernels. Frames are paced by the channel's frame counter.
 //
 // Display list memory used (words): the firmware keeps the first 32 and
-// its own lists; BMAtariST uses 88 words from 3072 (or 2048, or 1024,
+// its own lists; BMNeXT uses 88 words from 3072 (or 2048, or 1024,
 // whichever doesn't overlap the firmware's list for the channel): two
 // kernels, then two list slots used in turn, so the list being shown is
 // never written to.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_KMS_PI4_HVS_H_
-#define BMATARIST_KMS_PI4_HVS_H_
+#ifndef BMNEXT_KMS_PI4_HVS_H_
+#define BMNEXT_KMS_PI4_HVS_H_
 
 #include "dlist.h"
 #include "../common/filter.h"
@@ -71,7 +71,7 @@ private:
   unsigned m_nChannel;
   unsigned m_nWidth, m_nHeight;
   uint32_t m_nFirmwareList;    // the firmware's DISPLISTx, to restore
-  unsigned m_nRegion;          // BMAtariST's display list memory (words)
+  unsigned m_nRegion;          // BMNeXT's display list memory (words)
   unsigned m_nKernelSmooth, m_nKernelSharp;
   unsigned m_nSlot[2];
   unsigned m_nNextSlot;        // list slot written next: 0 or 1

@@ -8,12 +8,12 @@
 // The uniform kinds and fields follow Mesa, src/broadcom/compiler/
 // v3d_compiler.h (Copyright (C) 2016 Broadcom, MIT licence).
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_V3D_SHADER_H_
-#define BMATARIST_V3D_SHADER_H_
+#ifndef BMNEXT_V3D_SHADER_H_
+#define BMNEXT_V3D_SHADER_H_
 
 #include <stdint.h>
 

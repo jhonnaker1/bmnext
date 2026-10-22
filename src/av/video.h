@@ -3,7 +3,7 @@
 //
 // The Pi 4 and Pi 5 display: Circle's framebuffer driver (CBcmFrameBuffer), which
 // asks the VideoCore firmware for a framebuffer through the mailbox
-// property interface. The firmware puts it on the screen; BMAtariST scales
+// property interface. The firmware puts it on the screen; BMNeXT scales
 // the Apple II's picture into it.
 //
 // The picture comes from KEGS as RGB565 (BMA800XL's, from atari800, is
@@ -40,12 +40,12 @@
 //    semaphore.cpp: Circle's VCHIQ waits yield, which is how the Pi 3 runs
 //    them while it waits for a frame.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_AV_VIDEO_H_
-#define BMATARIST_AV_VIDEO_H_
+#ifndef BMNEXT_AV_VIDEO_H_
+#define BMNEXT_AV_VIDEO_H_
 
 #include "frameshare.h"
 #include "scaler.h"
@@ -65,9 +65,9 @@ public:
   ~Pi4Video(void);
 
   // Which driver puts the picture on the screen (the video_driver option):
-  // the firmware's framebuffer, or BMAtariST's own display lists on the HVS
+  // the firmware's framebuffer, or BMNeXT's own display lists on the HVS
   // (src/kms/pi4/ or, on the Pi 5, src/kms/pi5/; docs/PI4.md), on the
-  // firmware's video mode or (Kms) with BMAtariST setting the mode too.
+  // firmware's video mode or (Kms) with BMNeXT setting the mode too.
   enum class Driver { Firmware, Hvs, Kms };
 
   // Core 0, at start up: takes a double buffered framebuffer and, if asked

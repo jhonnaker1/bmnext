@@ -13,12 +13,12 @@
 // include/circle/memorymap64.h for where the BCM2712's AXI and SoC
 // peripherals are.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_V3D_REGS_H_
-#define BMATARIST_V3D_REGS_H_
+#ifndef BMNEXT_V3D_REGS_H_
+#define BMNEXT_V3D_REGS_H_
 
 #include <stdint.h>
 

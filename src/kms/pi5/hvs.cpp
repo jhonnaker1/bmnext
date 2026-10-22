@@ -3,7 +3,7 @@
 //
 // See hvs.h.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
@@ -19,7 +19,7 @@ namespace kms {
 
 namespace {
 
-// BMAtariST's part of display list memory: two kernels, then two list
+// BMNeXT's part of display list memory: two kernels, then two list
 // slots of 32 words each, from one of these bases, whichever doesn't
 // overlap the firmware's lists.
 const unsigned RegionWords = 2 * hvs::KernelWords + 2 + 2 * 32;

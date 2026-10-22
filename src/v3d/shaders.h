@@ -5,12 +5,12 @@
 // headers, shader_*.h for V3D 4.2 or shader71_*.h for V3D 7.1, each
 // included once, in shaders.cpp.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_V3D_SHADERS_H_
-#define BMATARIST_V3D_SHADERS_H_
+#ifndef BMNEXT_V3D_SHADERS_H_
+#define BMNEXT_V3D_SHADERS_H_
 
 #include "shader.h"
 

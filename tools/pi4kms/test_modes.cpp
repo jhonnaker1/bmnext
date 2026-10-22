@@ -5,7 +5,7 @@
 // EDID, choosing the mode, the AVI InfoFrame and the audio clock; and the
 // Pi 4 PHY's settings (src/kms/pi4/phy.*).
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
@@ -23,7 +23,7 @@ using namespace kms;
 // NTSC 262 lines at 1.789790 MHz.
 static const double PalFps = 1773447.0 / 114 / 312;
 static const double NtscFps = 1789790.0 / 114 / 262;
-// KEGS's (BMAtariST's): 262 lines of 65 cycles of the IIgs's 1.0205 MHz
+// KEGS's (BMNeXT's): 262 lines of 65 cycles of the IIgs's 1.0205 MHz
 // (its 28.636 MHz crystal divided by 28, every 65th cycle stretched; KEGS's
 // VBL_RATE, defc.h).
 static const double Iigs1Mhz = 28636360.0 / 28.0 * (65.0 * 7 / (65.0 * 7 + 1.0));

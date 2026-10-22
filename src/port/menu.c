@@ -1,29 +1,24 @@
 /*
- * menu.c - the BMAtariST menu.
+ * menu.c - the BMNeXT menu.
  *
- * F12, a gamepad's Home button or Select+Start open it (Hatari's own F12
- * opens its settings dialog). Everything about the emulated ST (floppy and
- * hard disks, the machine, TOS, memory, joysticks) and BMAtariST's own
- * settings (video, sound, network, power).
+ * F12, a gamepad's Home button or Select+Start open it (Previous's own F12
+ * opens its settings dialog). Everything about the emulated NeXT (its
+ * disks, the machine, ROM, memory) and BMNeXT's own settings (video,
+ * sound, network, power).
  *
- * The ST's settings are Hatari's (ConfigureParams): they are changed here
- * and put into effect the way Hatari's own settings dialog does it
- * (bmatarist_settings_apply(), which resets the ST when a change needs it),
- * and kept in hatari.cfg. BMAtariST's are kept in bmatarist.cfg.
+ * The NeXT's settings are Previous's (ConfigureParams): they are changed
+ * here and put into effect the way Previous's own settings dialog does it
+ * (bmnext_settings_apply(), which restarts the NeXT when a change needs
+ * it), and kept in previous.cfg. BMNeXT's are kept in bmnext.cfg.
  *
- * From BMCoco's and BMApple2's menu.c.
+ * From BMCoco's, BMApple2's and BMAtariST's menu.c.
  *
- * This file is part of BMAtariST, a bare metal Atari ST emulator for the
+ * This file is part of BMNeXT, a bare metal NeXT emulator for the
  * Raspberry Pi. See LICENSE for licensing details.
  */
 
 #include "main.h"
 #include "configuration.h"
-#include "floppy.h"
-#include "joy_ui.h"
-#include "memorySnapShot.h"
-#include "tos.h"
-#include "version.h"
 
 #include <stdint.h>
 #include <strings.h>
@@ -31,11 +26,11 @@
 #include <time.h>
 
 #include "../host.h"
-#include "bmatarist.h"
+#include "bmnext.h"
 #include "osd.h"
 
-#ifndef BMATARIST_VERSION
-#define BMATARIST_VERSION "dev"
+#ifndef BMNEXT_VERSION
+#define BMNEXT_VERSION "dev"
 #endif
 
 #define WPA_CONFIG "wpa_supplicant.conf"
@@ -51,7 +46,7 @@ static char browse_dir[256];
 static void save_setting(const char *name, const char *value)
 {
 	if (!host_option_set(name, value) || !host_options_save())
-		osd_message("Cannot save bmatarist.cfg", TRUE);
+		osd_message("Cannot save bmnext.cfg", TRUE);
 }
 
 static void save_setting_int(const char *name, int value)
@@ -77,8 +72,8 @@ static unsigned check(int on)
 
 static void power(int off)
 {
-	bmatarist_request_power(off);
-	bmatarist_idle();
+	bmnext_request_power(off);
+	bmnext_idle();
 }
 
 static const char *base_name(const char *path)
@@ -92,67 +87,66 @@ static int browse(const char *title, const char *dir, const char *const exts[],
                   char *path, size_t size)
 {
 	if (browse_dir[0] == '\0')
-		bmatarist_card_path(browse_dir, sizeof browse_dir, dir, "");
+		bmnext_card_path(browse_dir, sizeof browse_dir, dir, "");
 	return osd_browse(title, browse_dir, sizeof browse_dir, exts, path, size);
 }
 
-/* ---- Floppy drives ----------------------------------------------------------- */
+/* ---- Disks ---------------------------------------------------------------- */
 
-static const char *const floppy_exts[] = {
-	"st", "msa", "dim", "stx", "scp", "zip", "gz", NULL
-};
+/* Previous's disk images: raw images of whole disks (a SCSI disk, a CD, an
+   optical disk or a floppy), whatever their name ends in. */
+static const char *const disk_exts[] = {"dsk", "img", "iso", "cdr", "raw", "hd", "od", "fd",
+                                        "bin", NULL};
 
-static void floppy_menu(int drive)
+static const char *const scsi_types[] = {"None", "Hard Disk", "CD-ROM", "Floppy", NULL};
+
+static void scsi_menu(int target)
 {
-	enum { F_INSERT, F_EJECT, F_ENABLED, F_SIDES };
+	enum { T_TYPE, T_INSERT, T_EJECT, T_PROTECT };
 	int sel = 0;
 	for (;;) {
+		SCSIDISK *t = &ConfigureParams.SCSI.target[target];
 		char title[24];
-		const char *name = ConfigureParams.DiskImage.szDiskFileName[drive];
-		int enabled = drive == 0 ? ConfigureParams.DiskImage.EnableDriveA
-		                         : ConfigureParams.DiskImage.EnableDriveB;
-		int heads = drive == 0 ? ConfigureParams.DiskImage.DriveA_NumberOfHeads
-		                       : ConfigureParams.DiskImage.DriveB_NumberOfHeads;
 		struct osd_item items[] = {
-			{"Disk", name[0] ? base_name(name) : "(empty)", OSD_ITEM_LABEL, -1},
+			{"Device", scsi_types[t->nDeviceType % NUM_SD], OSD_ITEM_SUBMENU, T_TYPE},
+			{"Disk", t->bDiskInserted && t->szImageName[0] ? base_name(t->szImageName)
+			                                               : "(empty)", OSD_ITEM_LABEL, -1},
 			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"Insert a Disk...", NULL, OSD_ITEM_SUBMENU, F_INSERT},
-			{"Eject", NULL, 0, F_EJECT},
-			{"Drive Connected", NULL, check(enabled), F_ENABLED},
-			{"Double Sided", NULL, check(heads == 2), F_SIDES},
+			{"Insert a Disk Image...", NULL, OSD_ITEM_SUBMENU, T_INSERT},
+			{"Eject", NULL, 0, T_EJECT},
+			{"Write Protected", NULL, check(t->bWriteProtected), T_PROTECT},
 		};
-		char path[512];
-		int chosen;
-		snprintf(title, sizeof title, "Floppy Drive %c:", 'A' + drive);
+		char path[FILENAME_MAX];
+		int chosen, i;
+		snprintf(title, sizeof title, "SCSI Disk %d", target);
 		chosen = osd_menu(title, items, sizeof items / sizeof items[0], &sel);
-		bmatarist_settings_begin();
+		bmnext_settings_begin();
 		switch (chosen) {
-		case F_INSERT:
-			if (!browse("Insert a Floppy Disk", "disks", floppy_exts, path, sizeof path))
-				break;
-			if (Floppy_SetDiskFileName(drive, path, NULL) == NULL) {
-				osd_message("Cannot use that disk image (or it's in the other drive).", TRUE);
-				break;
+		case T_TYPE:
+			i = osd_choose("Device", scsi_types, t->nDeviceType % NUM_SD);
+			if (i >= 0 && i != (int) t->nDeviceType) {
+				t->nDeviceType = i;
+				if (i == SD_NONE)
+					t->bDiskInserted = false;
+				bmnext_settings_apply(i == SD_HARDDISK || i == SD_NONE);
 			}
-			bmatarist_settings_apply(FALSE);
-			return;
-		case F_EJECT:
-			Floppy_SetDiskFileNameNone(drive);
-			bmatarist_settings_apply(FALSE);
 			break;
-		case F_ENABLED:
-			if (drive == 0)
-				ConfigureParams.DiskImage.EnableDriveA = !enabled;
-			else
-				ConfigureParams.DiskImage.EnableDriveB = !enabled;
-			bmatarist_settings_apply(FALSE);
+		case T_INSERT:
+			if (!browse("Insert a Disk Image", "disks", disk_exts, path, sizeof path))
+				break;
+			snprintf(t->szImageName, sizeof t->szImageName, "%s", path);
+			if (t->nDeviceType == SD_NONE)
+				t->nDeviceType = SD_HARDDISK;
+			t->bDiskInserted = true;
+			bmnext_settings_apply(t->nDeviceType == SD_HARDDISK);
 			break;
-		case F_SIDES:
-			if (drive == 0)
-				ConfigureParams.DiskImage.DriveA_NumberOfHeads = heads == 2 ? 1 : 2;
-			else
-				ConfigureParams.DiskImage.DriveB_NumberOfHeads = heads == 2 ? 1 : 2;
-			bmatarist_settings_apply(FALSE);
+		case T_EJECT:
+			t->bDiskInserted = false;
+			bmnext_settings_apply(t->nDeviceType == SD_HARDDISK);
+			break;
+		case T_PROTECT:
+			t->bWriteProtected = !t->bWriteProtected;
+			bmnext_settings_apply(t->nDeviceType == SD_HARDDISK);
 			break;
 		default:
 			return;
@@ -160,158 +154,109 @@ static void floppy_menu(int drive)
 		if (osd_closing())
 			return;
 	}
+}
+
+/* An optical (MO) or floppy drive: CONNECTED, INSERTED, PROTECTED and
+   NAME are its settings. */
+static void drive_menu(const char *title, bool *connected, bool *inserted, bool *protected_,
+                       char *name, size_t name_size)
+{
+	enum { R_CONNECTED, R_INSERT, R_EJECT, R_PROTECT };
+	int sel = 0;
+	for (;;) {
+		struct osd_item items[] = {
+			{"Drive Connected", NULL, check(*connected), R_CONNECTED},
+			{"Disk", *inserted && name[0] ? base_name(name) : "(empty)", OSD_ITEM_LABEL, -1},
+			{"", NULL, OSD_ITEM_LABEL, -1},
+			{"Insert a Disk Image...", NULL, OSD_ITEM_SUBMENU, R_INSERT},
+			{"Eject", NULL, 0, R_EJECT},
+			{"Write Protected", NULL, check(*protected_), R_PROTECT},
+		};
+		char path[FILENAME_MAX];
+		int chosen = osd_menu(title, items, sizeof items / sizeof items[0], &sel);
+		bmnext_settings_begin();
+		switch (chosen) {
+		case R_CONNECTED:
+			*connected = !*connected;
+			bmnext_settings_apply(TRUE);
+			break;
+		case R_INSERT:
+			if (!browse("Insert a Disk Image", "disks", disk_exts, path, sizeof path))
+				break;
+			snprintf(name, name_size, "%s", path);
+			*inserted = true;
+			*connected = true;
+			bmnext_settings_apply(FALSE);
+			break;
+		case R_EJECT:
+			*inserted = false;
+			bmnext_settings_apply(FALSE);
+			break;
+		case R_PROTECT:
+			*protected_ = !*protected_;
+			bmnext_settings_apply(FALSE);
+			break;
+		default:
+			return;
+		}
+		if (osd_closing())
+			return;
+	}
+}
+
+static const char *drive_value(int connected, int inserted, const char *name)
+{
+	if (!connected)
+		return "(none)";
+	return inserted && name[0] ? base_name(name) : "(empty)";
 }
 
 static void disks_menu(void)
 {
-	enum { D_A, D_B, D_PROTECT, D_FAST, D_AUTO_B };
-	static const char *const protections[] = {"Off", "On", "Automatic", NULL};
+	enum { D_SCSI = 0, D_MO = 16, D_FLOPPY = 32 };
 	int sel = 0;
 	for (;;) {
-		const char *a = ConfigureParams.DiskImage.szDiskFileName[0];
-		const char *b = ConfigureParams.DiskImage.szDiskFileName[1];
-		struct osd_item items[] = {
-			{"Drive A:", a[0] ? base_name(a) : "(empty)", OSD_ITEM_SUBMENU, D_A},
-			{"Drive B:", b[0] ? base_name(b) : "(empty)", OSD_ITEM_SUBMENU, D_B},
-			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"Write Protection", protections[ConfigureParams.DiskImage.nWriteProtection % 3],
-			 OSD_ITEM_SUBMENU, D_PROTECT},
-			{"Fast Floppy Access", NULL, check(ConfigureParams.DiskImage.FastFloppy), D_FAST},
-			{"Disk 2 into B: Too", NULL, check(ConfigureParams.DiskImage.bAutoInsertDiskB),
-			 D_AUTO_B},
-			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"Disks the ST writes to are written back to the card", NULL, OSD_ITEM_LABEL, -1},
-			{"two seconds later (.st, .msa, .dim).", NULL, OSD_ITEM_LABEL, -1},
-		};
-		int chosen = osd_menu("Floppy Disks", items, sizeof items / sizeof items[0], &sel), i;
-		switch (chosen) {
-		case D_A:
-			floppy_menu(0);
-			break;
-		case D_B:
-			floppy_menu(1);
-			break;
-		case D_PROTECT:
-			i = osd_choose("Write Protection", protections,
-			               ConfigureParams.DiskImage.nWriteProtection % 3);
-			if (i >= 0) {
-				bmatarist_settings_begin();
-				ConfigureParams.DiskImage.nWriteProtection = i;
-				bmatarist_settings_apply(FALSE);
-			}
-			break;
-		case D_FAST:
-			bmatarist_settings_begin();
-			ConfigureParams.DiskImage.FastFloppy = !ConfigureParams.DiskImage.FastFloppy;
-			bmatarist_settings_apply(FALSE);
-			break;
-		case D_AUTO_B:
-			bmatarist_settings_begin();
-			ConfigureParams.DiskImage.bAutoInsertDiskB = !ConfigureParams.DiskImage.bAutoInsertDiskB;
-			bmatarist_settings_apply(FALSE);
-			break;
-		default:
-			return;
+		struct osd_item items[ESP_MAX_DEVS + MO_MAX_DRIVES + 6];
+		char labels[ESP_MAX_DEVS + MO_MAX_DRIVES + 1][24];
+		int n = 0, i, chosen;
+		for (i = 0; i < ESP_MAX_DEVS; i++) {
+			SCSIDISK *t = &ConfigureParams.SCSI.target[i];
+			snprintf(labels[i], sizeof labels[i], "SCSI Disk %d", i);
+			items[n++] = (struct osd_item) {
+				labels[i], t->nDeviceType == SD_NONE ? "(none)"
+				           : drive_value(1, t->bDiskInserted, t->szImageName),
+				OSD_ITEM_SUBMENU, D_SCSI + i};
 		}
-		if (osd_closing())
-			return;
-	}
-}
-
-/* ---- Hard disks ----------------------------------------------------------- */
-
-static const char *const hd_exts[] = {"img", "hd", "hdf", "raw", "bin", NULL};
-
-static void hard_disks_menu(void)
-{
-	enum { H_FOLDER, H_FOLDER_OFF, H_ACSI, H_ACSI_OFF, H_IDE, H_IDE_OFF, H_BOOT,
-	       H_PROTECT };
-	static const char *const protections[] = {"Off", "On", "Automatic", NULL};
-	int sel = 0;
-	for (;;) {
-		const char *folder = ConfigureParams.HardDisk.szHardDiskDirectories[0];
-		int use_folder = ConfigureParams.HardDisk.bUseHardDiskDirectories && folder[0];
-		const char *acsi = ConfigureParams.Acsi[0].sDeviceFile;
-		const char *ide = ConfigureParams.Ide[0].sDeviceFile;
-		int use_acsi = ConfigureParams.Acsi[0].bUseDevice && acsi[0];
-		int use_ide = ConfigureParams.Ide[0].bUseDevice && ide[0];
-		struct osd_item items[] = {
-			{"Folder as a Drive (GEMDOS)", use_folder ? base_name(folder) : "(none)",
-			 OSD_ITEM_SUBMENU, H_FOLDER},
-			{"No Folder Drive", NULL, 0, H_FOLDER_OFF},
-			{"ACSI Hard Disk Image", use_acsi ? base_name(acsi) : "(none)",
-			 OSD_ITEM_SUBMENU, H_ACSI},
-			{"No ACSI Hard Disk", NULL, 0, H_ACSI_OFF},
-			{"IDE Hard Disk Image", use_ide ? base_name(ide) : "(none)",
-			 OSD_ITEM_SUBMENU, H_IDE},
-			{"No IDE Hard Disk", NULL, 0, H_IDE_OFF},
-			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"Start from the Hard Disk", NULL, check(ConfigureParams.HardDisk.bBootFromHardDisk),
-			 H_BOOT},
-			{"Folder Drive Write Protection",
-			 protections[ConfigureParams.HardDisk.nWriteProtection % 3], OSD_ITEM_SUBMENU,
-			 H_PROTECT},
-			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"A folder on the card can be the ST's drive C: (or the", NULL, OSD_ITEM_LABEL, -1},
-			{"drive after the hard disk's partitions). Changes reset", NULL, OSD_ITEM_LABEL, -1},
-			{"the ST.", NULL, OSD_ITEM_LABEL, -1},
-		};
-		char path[FILENAME_MAX], dir[FILENAME_MAX];
-		int chosen = osd_menu("Hard Disks", items, sizeof items / sizeof items[0], &sel), i;
-		bmatarist_settings_begin();
-		switch (chosen) {
-		case H_FOLDER:
-			if (use_folder)
-				snprintf(dir, sizeof dir, "%s", folder);
-			else
-				bmatarist_card_path(dir, sizeof dir, "hd", "");
-			if (!osd_browse_folder("Choose the Folder", dir, sizeof dir, path, sizeof path))
-				break;
-			snprintf(ConfigureParams.HardDisk.szHardDiskDirectories[0],
-			         sizeof ConfigureParams.HardDisk.szHardDiskDirectories[0], "%s", path);
-			ConfigureParams.HardDisk.bUseHardDiskDirectories = true;
-			bmatarist_settings_apply(TRUE);
-			break;
-		case H_FOLDER_OFF:
-			ConfigureParams.HardDisk.bUseHardDiskDirectories = false;
-			bmatarist_settings_apply(TRUE);
-			break;
-		case H_ACSI:
-		case H_IDE:
-			if (!browse("Choose the Hard Disk Image", "hd", hd_exts, path, sizeof path))
-				break;
-			if (chosen == H_ACSI) {
-				snprintf(ConfigureParams.Acsi[0].sDeviceFile,
-				         sizeof ConfigureParams.Acsi[0].sDeviceFile, "%s", path);
-				ConfigureParams.Acsi[0].bUseDevice = true;
-			} else {
-				snprintf(ConfigureParams.Ide[0].sDeviceFile,
-				         sizeof ConfigureParams.Ide[0].sDeviceFile, "%s", path);
-				ConfigureParams.Ide[0].bUseDevice = true;
-			}
-			bmatarist_settings_apply(TRUE);
-			break;
-		case H_ACSI_OFF:
-			ConfigureParams.Acsi[0].bUseDevice = false;
-			bmatarist_settings_apply(TRUE);
-			break;
-		case H_IDE_OFF:
-			ConfigureParams.Ide[0].bUseDevice = false;
-			bmatarist_settings_apply(TRUE);
-			break;
-		case H_BOOT:
-			ConfigureParams.HardDisk.bBootFromHardDisk = !ConfigureParams.HardDisk.bBootFromHardDisk;
-			bmatarist_settings_apply(FALSE);
-			break;
-		case H_PROTECT:
-			i = osd_choose("Write Protection", protections,
-			               ConfigureParams.HardDisk.nWriteProtection % 3);
-			if (i >= 0) {
-				ConfigureParams.HardDisk.nWriteProtection = i;
-				bmatarist_settings_apply(FALSE);
-			}
-			break;
-		default:
+		items[n++] = (struct osd_item) {"", NULL, OSD_ITEM_LABEL, -1};
+		for (i = 0; i < MO_MAX_DRIVES; i++) {
+			MODISK *d = &ConfigureParams.MO.drive[i];
+			snprintf(labels[ESP_MAX_DEVS + i], sizeof labels[0], "Optical Drive %d", i);
+			items[n++] = (struct osd_item) {
+				labels[ESP_MAX_DEVS + i],
+				drive_value(d->bDriveConnected, d->bDiskInserted, d->szImageName),
+				OSD_ITEM_SUBMENU, D_MO + i};
+		}
+		items[n++] = (struct osd_item) {
+			"Floppy Drive", drive_value(ConfigureParams.Floppy.drive[0].bDriveConnected,
+			                            ConfigureParams.Floppy.drive[0].bDiskInserted,
+			                            ConfigureParams.Floppy.drive[0].szImageName),
+			OSD_ITEM_SUBMENU, D_FLOPPY};
+		items[n++] = (struct osd_item) {"", NULL, OSD_ITEM_LABEL, -1};
+		items[n++] = (struct osd_item) {"Disk images are in the card's disks folder.", NULL,
+		                                OSD_ITEM_LABEL, -1};
+		chosen = osd_menu("Disks", items, n, &sel);
+		if (chosen >= D_SCSI && chosen < D_SCSI + ESP_MAX_DEVS) {
+			scsi_menu(chosen - D_SCSI);
+		} else if (chosen >= D_MO && chosen < D_MO + MO_MAX_DRIVES) {
+			MODISK *d = &ConfigureParams.MO.drive[chosen - D_MO];
+			drive_menu(labels[ESP_MAX_DEVS + chosen - D_MO], &d->bDriveConnected,
+			           &d->bDiskInserted, &d->bWriteProtected, d->szImageName,
+			           sizeof d->szImageName);
+		} else if (chosen == D_FLOPPY) {
+			FLPDISK *d = &ConfigureParams.Floppy.drive[0];
+			drive_menu("Floppy Drive", &d->bDriveConnected, &d->bDiskInserted,
+			           &d->bWriteProtected, d->szImageName, sizeof d->szImageName);
+		} else {
 			return;
 		}
 		if (osd_closing())
@@ -321,260 +266,127 @@ static void hard_disks_menu(void)
 
 /* ---- Machine ------------------------------------------------------------------ */
 
-static const char *const machine_names[] = {
-	"Atari ST", "Mega ST", "Atari STE", "Mega STE", "Atari TT", "Falcon 030", NULL
+/* The NeXTs Previous emulates, as its System dialog offers them. */
+static const struct {
+	const char *name;
+	MACHINETYPE type;
+	bool turbo, color;
+} machines[] = {
+	{"NeXT Computer (68030)", NEXT_CUBE030, false, false},
+	{"NeXTcube (68040)", NEXT_CUBE040, false, false},
+	{"NeXTcube Turbo", NEXT_CUBE040, true, false},
+	{"NeXTstation", NEXT_STATION, false, false},
+	{"NeXTstation Turbo", NEXT_STATION, true, false},
+	{"NeXTstation Color", NEXT_STATION, false, true},
+	{"NeXTstation Turbo Color", NEXT_STATION, true, true},
 };
+#define N_MACHINES ((int) (sizeof machines / sizeof machines[0]))
 
-/* The machine's own CPU and its speed, as Hatari's --machine sets them
-   (options.c). */
-static void set_machine(int m)
+static int machine_index(void)
 {
-	CNF_SYSTEM *sys = &ConfigureParams.System;
-	sys->nMachineType = m;
-	switch (m) {
-	case MACHINE_TT:
-		sys->nCpuLevel = 3;
-		sys->nCpuFreq = 32;
-		sys->bCompatibleFPU = true;
-		sys->n_FPUType = FPU_68882;
-		break;
-	case MACHINE_FALCON:
-#if ENABLE_DSP_EMU
-		sys->nDSPType = DSP_TYPE_EMU;
-#endif
-		sys->nCpuLevel = 3;
-		sys->nCpuFreq = 16;
-		sys->n_FPUType = FPU_NONE;
-		break;
-	default:
-		sys->nCpuLevel = 0;
-		sys->nCpuFreq = 8;
-		sys->n_FPUType = FPU_NONE;
-		sys->bMMU = false;
-		sys->bAddressSpace24 = true;
-		break;
-	}
-	/* A colour monitor for the machine (the Falcon's VGA, an ST's RGB),
-	   unless the monochrome one was chosen. */
-	if (ConfigureParams.Screen.nMonitorType != MONITOR_TYPE_MONO)
-		ConfigureParams.Screen.nMonitorType = m == MACHINE_FALCON || m == MACHINE_TT
-		                                      ? MONITOR_TYPE_VGA : MONITOR_TYPE_RGB;
+	int i;
+	for (i = 0; i < N_MACHINES; i++)
+		if (machines[i].type == ConfigureParams.System.nMachineType
+		    && machines[i].turbo == ConfigureParams.System.bTurbo
+		    && machines[i].color == ConfigureParams.System.bColor)
+			return i;
+	return 0;
 }
 
-static const char *tos_value(void)
+const char *bmnext_machine_text(void)
 {
-	int n;
-	for (n = 0; n < bmatarist_tos_count(); n++)
-		if (strcmp(bmatarist_tos_path(n), ConfigureParams.Rom.szTosImageFileName) == 0)
-			return bmatarist_tos_name(n);
-	return base_name(ConfigureParams.Rom.szTosImageFileName);
+	return machines[machine_index()].name;
 }
 
-static const int st_ram[] = {512, 1024, 2048, 2560, 4096, 8192, 14336};
-
-static const char *ram_text(int kb, char *buf, size_t size)
+static const char *rom_value(void)
 {
-	if (kb < 1024)
-		snprintf(buf, size, "%d KB", kb);
-	else if (kb % 1024)
-		snprintf(buf, size, "%d.%d MB", kb / 1024, kb % 1024 * 10 / 1024);
-	else
-		snprintf(buf, size, "%d MB", kb / 1024);
-	return buf;
+	if (ConfigureParams.System.nMachineType == NEXT_CUBE030)
+		return base_name(ConfigureParams.Rom.szRom030FileName);
+	if (ConfigureParams.System.bTurbo)
+		return base_name(ConfigureParams.Rom.szRomTurboFileName);
+	return base_name(ConfigureParams.Rom.szRom040FileName);
+}
+
+static int memory_mb(void)
+{
+	int i, mb = 0;
+	for (i = 0; i < 4; i++)
+		mb += ConfigureParams.Memory.nMemoryBankSize[i];
+	return mb;
 }
 
 static void machine_menu(void)
 {
-	enum { S_MACHINE, S_TOS, S_RAM, S_TTRAM, S_MONITOR, S_BLITTER, S_SPEED, S_EXACT,
-	       S_FASTBOOT };
-	static const char *const monitors[] = {"Monochrome (SM124)", "Colour (SC1224)", "VGA",
-	                                       "TV", NULL};
-	static const char *const speeds[] = {"8 MHz", "16 MHz", "32 MHz", NULL};
+	enum { S_MACHINE, S_ROM, S_RAM, S_REALTIME, S_SWAP };
 	int sel = 0;
 	for (;;) {
-		CNF_SYSTEM *sys = &ConfigureParams.System;
-		char ram[16], ttram[16], speed[12];
-		int tt_or_falcon = sys->nMachineType == MACHINE_TT
-		                   || sys->nMachineType == MACHINE_FALCON;
+		char ram[16];
 		struct osd_item items[] = {
-			{"Machine", machine_names[sys->nMachineType % 6], OSD_ITEM_SUBMENU, S_MACHINE},
-			{"TOS", tos_value(), OSD_ITEM_SUBMENU, S_TOS},
-			{"Memory", ram_text(ConfigureParams.Memory.STRamSize_KB, ram, sizeof ram),
+			{"Machine", machines[machine_index()].name, OSD_ITEM_SUBMENU, S_MACHINE},
+			{"ROM", rom_value(), OSD_ITEM_SUBMENU, S_ROM},
+			{"Memory", (snprintf(ram, sizeof ram, "%d MB", memory_mb()), ram),
 			 OSD_ITEM_SUBMENU, S_RAM},
-			{"TT-RAM (Fast RAM)", ram_text(ConfigureParams.Memory.TTRamSize_KB, ttram, sizeof ttram),
-			 OSD_ITEM_SUBMENU, S_TTRAM},
-			{"Monitor", monitors[ConfigureParams.Screen.nMonitorType % 4], OSD_ITEM_SUBMENU,
-			 S_MONITOR},
-			{"Blitter (ST)", NULL, check(sys->bBlitter || sys->nMachineType != MACHINE_ST),
-			 S_BLITTER},
-			{"CPU Speed", (snprintf(speed, sizeof speed, "%d MHz", sys->nCpuFreq), speed),
-			 OSD_ITEM_SUBMENU, S_SPEED},
-			{"Cycle Exact CPU", NULL, check(sys->bCycleExactCpu), S_EXACT},
-			{"Fast Boot (skip TOS's memory test)", NULL, check(sys->bFastBoot), S_FASTBOOT},
+			{"Variable Speed (real time clock)", NULL,
+			 check(ConfigureParams.System.bRealtime), S_REALTIME},
+			{"Swap Command and Alt", NULL, check(ConfigureParams.Keyboard.bSwapCmdAlt),
+			 S_SWAP},
 			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"Changes here reset the ST. The TT and the Falcon need", NULL, OSD_ITEM_LABEL, -1},
-			{"a Raspberry Pi 4 or 5, and a TOS of their own (or EmuTOS).", NULL, OSD_ITEM_LABEL, -1},
+			{"Changes here restart the NeXT. The 68040 machines", NULL, OSD_ITEM_LABEL, -1},
+			{"need ROM 2.x, the Turbos ROM 3.x (in the roms folder).", NULL, OSD_ITEM_LABEL, -1},
 		};
-		const char *tos_names[33];
-		const char *ram_names[8];
-		char ram_bufs[7][16];
-		int chosen, i, n;
-		(void) tt_or_falcon;
+		const char *names[N_MACHINES + 1];
+		char path[FILENAME_MAX];
+		int chosen, i;
 		chosen = osd_menu("Machine", items, sizeof items / sizeof items[0], &sel);
-		bmatarist_settings_begin();
+		bmnext_settings_begin();
 		switch (chosen) {
 		case S_MACHINE:
-			i = osd_choose("Machine", machine_names, sys->nMachineType % 6);
-			if (i >= 0 && i != (int) sys->nMachineType) {
-				set_machine(i);
-				bmatarist_settings_apply(TRUE);
+			for (i = 0; i < N_MACHINES; i++)
+				names[i] = machines[i].name;
+			names[N_MACHINES] = NULL;
+			i = osd_choose("Machine", names, machine_index());
+			if (i >= 0 && i != machine_index()) {
+				ConfigureParams.System.nMachineType = machines[i].type;
+				ConfigureParams.System.bTurbo = machines[i].turbo;
+				ConfigureParams.System.bColor = machines[i].color;
+				Configuration_SetSystemDefaults();
+				bmnext_find_roms();
+				bmnext_settings_apply(TRUE);
 			}
 			break;
-		case S_TOS:
-			n = bmatarist_tos_count();
-			if (n == 0) {
-				osd_message("There are no TOS images in the tos folder.", TRUE);
+		case S_ROM: {
+			char *rom = ConfigureParams.System.nMachineType == NEXT_CUBE030
+			            ? ConfigureParams.Rom.szRom030FileName
+			            : ConfigureParams.System.bTurbo ? ConfigureParams.Rom.szRomTurboFileName
+			                                            : ConfigureParams.Rom.szRom040FileName;
+			static const char *const rom_exts[] = {"bin", "rom", NULL};
+			if (!browse("Choose the ROM", "roms", rom_exts, path, sizeof path))
 				break;
-			}
-			if (n > 32)
-				n = 32;
-			for (i = 0; i < n; i++)
-				tos_names[i] = bmatarist_tos_name(i);
-			tos_names[n] = NULL;
-			i = osd_choose("TOS", tos_names, 0);
-			if (i >= 0) {
-				snprintf(ConfigureParams.Rom.szTosImageFileName,
-				         sizeof ConfigureParams.Rom.szTosImageFileName, "%s",
-				         bmatarist_tos_path(i));
-				bmatarist_settings_apply(TRUE);
-			}
+			snprintf(rom, FILENAME_MAX, "%s", path);
+			bmnext_settings_apply(TRUE);
 			break;
-		case S_RAM:
-			for (i = 0; i < 7; i++)
-				ram_names[i] = ram_text(st_ram[i], ram_bufs[i], sizeof ram_bufs[i]);
-			ram_names[7] = NULL;
-			i = osd_choose("Memory", ram_names, 1);
+		}
+		case S_RAM: {
+			static const char *const sizes[] = {"8 MB", "16 MB", "32 MB", "64 MB", "128 MB", NULL};
+			static const int banks[][4] = {
+				{4, 4, 0, 0}, {4, 4, 4, 4}, {16, 16, 0, 0}, {16, 16, 16, 16}, {32, 32, 32, 32}
+			};
+			int mb = memory_mb(), current = mb >= 128 ? 4 : mb >= 64 ? 3 : mb >= 32 ? 2
+			                               : mb >= 16 ? 1 : 0;
+			i = osd_choose("Memory", sizes, current);
 			if (i >= 0) {
-				ConfigureParams.Memory.STRamSize_KB = st_ram[i];
-				bmatarist_settings_apply(TRUE);
-			}
-			break;
-		case S_TTRAM: {
-			static const char *const tt_names[] = {"None", "16 MB", "32 MB", "64 MB",
-			                                       "128 MB", "256 MB", NULL};
-			static const int tt_kb[] = {0, 16384, 32768, 65536, 131072, 262144};
-			i = osd_choose("TT-RAM (TT and Falcon)", tt_names, 0);
-			if (i >= 0) {
-				ConfigureParams.Memory.TTRamSize_KB = tt_kb[i];
-				bmatarist_settings_apply(TRUE);
+				memcpy(ConfigureParams.Memory.nMemoryBankSize, banks[i], sizeof banks[i]);
+				bmnext_settings_apply(TRUE);
 			}
 			break;
 		}
-		case S_MONITOR:
-			i = osd_choose("Monitor", monitors, ConfigureParams.Screen.nMonitorType % 4);
-			if (i >= 0) {
-				ConfigureParams.Screen.nMonitorType = i;
-				bmatarist_settings_apply(FALSE);
-			}
+		case S_REALTIME:
+			ConfigureParams.System.bRealtime = !ConfigureParams.System.bRealtime;
+			bmnext_settings_apply(FALSE);
 			break;
-		case S_BLITTER:
-			sys->bBlitter = !sys->bBlitter;
-			bmatarist_settings_apply(FALSE);
-			break;
-		case S_SPEED:
-			i = osd_choose("CPU Speed", speeds, sys->nCpuFreq >= 32 ? 2 : sys->nCpuFreq >= 16);
-			if (i >= 0) {
-				sys->nCpuFreq = 8 << i;
-				bmatarist_settings_apply(FALSE);
-			}
-			break;
-		case S_EXACT:
-			sys->bCycleExactCpu = !sys->bCycleExactCpu;
-			bmatarist_settings_apply(FALSE);
-			break;
-		case S_FASTBOOT:
-			sys->bFastBoot = !sys->bFastBoot;
-			bmatarist_settings_apply(FALSE);
-			break;
-		default:
-			return;
-		}
-		if (osd_closing())
-			return;
-	}
-}
-
-/* ---- Joysticks ----------------------------------------------------------- */
-
-/* What can be in an ST joystick port: nothing, one of the host joysticks
-   (joy_ui.c), or the arrow keys. */
-static const char *const joy_choices[] = {
-	"None", "USB Gamepad 1", "USB Gamepad 2", "GPIO Joystick 1", "GPIO Joystick 2",
-	"Arrow Keys (Right Ctrl fires)", NULL
-};
-
-static int joy_choice(int port)
-{
-	JOYSTICK *j = &ConfigureParams.Joysticks.Joy[port];
-	if (j->nJoystickMode == JOYSTICK_KEYBOARD)
-		return 5;
-	if (j->nJoystickMode == JOYSTICK_REALSTICK && j->nJoyId >= 0 && j->nJoyId < 4)
-		return 1 + j->nJoyId;
-	return 0;
-}
-
-static void set_joy(int port, int choice)
-{
-	JOYSTICK *j = &ConfigureParams.Joysticks.Joy[port];
-	if (choice == 0) {
-		j->nJoystickMode = JOYSTICK_DISABLED;
-	} else if (choice == 5) {
-		j->nJoystickMode = JOYSTICK_KEYBOARD;
-		JoyUI_SetDefaultKeys(port);
-	} else {
-		j->nJoystickMode = JOYSTICK_REALSTICK;
-		j->nJoyId = choice - 1;
-	}
-}
-
-static void joysticks_menu(void)
-{
-	enum { J_PORT1, J_PORT0, J_AUTOFIRE, J_JUMP };
-	int sel = 0;
-	for (;;) {
-		JOYSTICK *j1 = &ConfigureParams.Joysticks.Joy[1];
-		struct osd_item items[] = {
-			{"Joystick Port", joy_choices[joy_choice(1)], OSD_ITEM_SUBMENU, J_PORT1},
-			{"Mouse Port", joy_choices[joy_choice(0)], OSD_ITEM_SUBMENU, J_PORT0},
-			{"Autofire (joystick port)", NULL, check(j1->bEnableAutoFire), J_AUTOFIRE},
-			{"B Button Presses Space", NULL, check(j1->bEnableJumpOnFire2), J_JUMP},
-			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"Most games use the joystick port. With a joystick in", NULL, OSD_ITEM_LABEL, -1},
-			{"the mouse port, the USB mouse isn't the ST's.", NULL, OSD_ITEM_LABEL, -1},
-			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"Gamepads: A fires, B is the second button, X types", NULL, OSD_ITEM_LABEL, -1},
-			{"Space and Y Return; the shoulder buttons autofire.", NULL, OSD_ITEM_LABEL, -1},
-		};
-		int chosen = osd_menu("Joysticks", items, sizeof items / sizeof items[0], &sel), i;
-		bmatarist_settings_begin();
-		switch (chosen) {
-		case J_PORT1:
-		case J_PORT0: {
-			int port = chosen == J_PORT1 ? 1 : 0;
-			i = osd_choose(port ? "Joystick Port" : "Mouse Port", joy_choices, joy_choice(port));
-			if (i >= 0) {
-				set_joy(port, i);
-				bmatarist_settings_apply(FALSE);
-			}
-			break;
-		}
-		case J_AUTOFIRE:
-			j1->bEnableAutoFire = !j1->bEnableAutoFire;
-			bmatarist_settings_apply(FALSE);
-			break;
-		case J_JUMP:
-			j1->bEnableJumpOnFire2 = !j1->bEnableJumpOnFire2;
-			bmatarist_settings_apply(FALSE);
+		case S_SWAP:
+			ConfigureParams.Keyboard.bSwapCmdAlt = !ConfigureParams.Keyboard.bSwapCmdAlt;
+			bmnext_settings_apply(FALSE);
 			break;
 		default:
 			return;
@@ -585,16 +397,6 @@ static void joysticks_menu(void)
 }
 
 /* ---- Video -------------------------------------------------------------- */
-
-static const char *vsync_mode(void)
-{
-	const char *mode = host_option("vsync", "auto");
-	if (strcmp(mode, "on") == 0 || strcmp(mode, "1") == 0)
-		return "On";
-	if (strcmp(mode, "off") == 0 || strcmp(mode, "0") == 0)
-		return "Off";
-	return bmatarist_vsync_locked() ? "Auto (locked)" : "Auto (timer)";
-}
 
 /* The picture's height as a percentage of the screen's (the scale option):
    less for a TV that cuts off the edges (overscan). From BMCoco. */
@@ -624,12 +426,12 @@ static void choose_screen_size(void)
 		return;
 	snprintf(text, sizeof text, "%d.%02d", sizes[i] / 100, sizes[i] % 100);
 	save_setting("scale", text);
-	bmatarist_video_settings_changed();
+	bmnext_video_settings_changed();
 }
 
 static void video_menu(void)
 {
-	enum { V_SIZE, V_VSYNC, V_RESOLUTION, V_SHADER, V_CURVATURE, V_SMOOTH,
+	enum { V_SIZE, V_RESOLUTION, V_SHADER, V_CURVATURE, V_SMOOTH,
 	       V_ACTIVITY };
 	/* The Pi 5 only: its firmware ignores hdmi_mode (from BMA800XL). */
 	static const char *const resolutions[] = {"auto", "1920x1080", "1280x720", NULL};
@@ -645,12 +447,11 @@ static void video_menu(void)
 				res_index = k;
 		struct osd_item items[] = {
 			{"Screen Size", size_text, OSD_ITEM_SUBMENU, V_SIZE},
-			{"Frame Lock", vsync_mode(), OSD_ITEM_SUBMENU, V_VSYNC},
 			{"Resolution", resolution_names[res_index], OSD_ITEM_SUBMENU, V_RESOLUTION},
 			{"CRT Effect (reboot)", NULL, check(setting_on("crt_shader", FALSE)), V_SHADER},
 			{"CRT Curvature (reboot)", NULL, check(setting_on("crt_curvature", FALSE)), V_CURVATURE},
 			{"Smooth Scaling (reboot)", NULL, check(setting_on("smooth", FALSE)), V_SMOOTH},
-			{"Show Disk Activity", NULL, check(bmatarist_disk_activity()), V_ACTIVITY},
+			{"Show Disk Activity", NULL, check(bmnext_disk_activity()), V_ACTIVITY},
 			{"", NULL, OSD_ITEM_LABEL, -1},
 			{"If your TV cuts off the edges, make", NULL, OSD_ITEM_LABEL, -1},
 			{"the Screen Size smaller.", NULL, OSD_ITEM_LABEL, -1},
@@ -659,7 +460,7 @@ static void video_menu(void)
 		n_items = sizeof(items) / sizeof(items[0]);
 		if (!host_display_resolution_choice()) {
 			/* Resolution is only for the Pi 5 (with video_driver=kms). */
-			for (k = 2; k < n_items - 1; k++)
+			for (k = 1; k < n_items - 1; k++)
 				items[k] = items[k + 1];
 			n_items--;
 		}
@@ -669,34 +470,20 @@ static void video_menu(void)
 			choose_screen_size();
 			break;
 		case V_ACTIVITY:
-			save_setting("disk_activity", bmatarist_disk_activity() ? "0" : "1");
-			bmatarist_set_disk_activity(!bmatarist_disk_activity());
+			save_setting("disk_activity", bmnext_disk_activity() ? "0" : "1");
+			bmnext_set_disk_activity(!bmnext_disk_activity());
 			break;
 		case V_RESOLUTION:
 			i = osd_choose("Resolution", resolution_names, res_index);
 			if (i >= 0 && i != res_index) {
 				save_setting("resolution", resolutions[i]);
-				bmatarist_display_mode_changed();
+				bmnext_display_mode_changed();
 			}
 			break;
 		case V_CURVATURE:
 			save_setting("crt_curvature", setting_on("crt_curvature", FALSE) ? "0" : "1");
 			reboot_needed = TRUE;
 			break;
-		case V_VSYNC: {
-			static const char *const choices[] = {
-				"Automatic", "On: follow the display", "Off: keep exact time", NULL
-			};
-			static const char *const values[] = {"auto", "on", "off"};
-			const char *mode = host_option("vsync", "auto");
-			int current = strcmp(mode, "on") == 0 ? 1 : strcmp(mode, "off") == 0 ? 2 : 0;
-			i = osd_choose("Frame Lock", choices, current);
-			if (i >= 0) {
-				save_setting("vsync", values[i]);
-				bmatarist_video_settings_changed();
-			}
-			break;
-		}
 		case V_SHADER:
 			save_setting("crt_shader", setting_on("crt_shader", FALSE) ? "0" : "1");
 			reboot_needed = TRUE;
@@ -732,15 +519,15 @@ static void sound_menu(void)
 			{"Output (reboot)", output_names[out_index], OSD_ITEM_SUBMENU, S_OUTPUT},
 		};
 		int chosen, i;
-		if (bmatarist_volume() == 0)
+		if (bmnext_volume() == 0)
 			snprintf(volume, sizeof volume, "Off");
 		else
-			snprintf(volume, sizeof volume, "%d%%", bmatarist_volume());
+			snprintf(volume, sizeof volume, "%d%%", bmnext_volume());
 		chosen = osd_menu("Sound", items, sizeof(items) / sizeof(items[0]), &sel);
 		if (chosen == S_VOLUME) {
-			i = osd_choose("Volume", volumes, (100 - bmatarist_volume() + 5) / 10);
+			i = osd_choose("Volume", volumes, (100 - bmnext_volume() + 5) / 10);
 			if (i >= 0)
-				bmatarist_set_volume(100 - i * 10);
+				bmnext_set_volume(100 - i * 10);
 			continue;
 		}
 		if (chosen != S_OUTPUT)
@@ -759,7 +546,7 @@ static char wifi_ssid[33], wifi_psk[64], wifi_country[3];
 
 static void wpa_path(char *path, size_t size)
 {
-	const char *root = bmatarist_sd_root();
+	const char *root = bmnext_sd_root();
 	size_t len = strlen(root);
 	snprintf(path, size, "%s%s%s", root, len > 0 && root[len - 1] == '/' ? "" : "/", WPA_CONFIG);
 }
@@ -982,100 +769,30 @@ static void network_menu(void)
 	}
 }
 
-/* ---- Saved states --------------------------------------------------------- */
-
-/* Four slots, snapshots/state1.sav to state4.sav on the card: Hatari's own
-   memory snapshots (the whole ST: memory, chips, CPU, disks in the drives).
-   A restore is done by the CPU core when it starts again (platform.c's main
-   loop restarts it, as after a reset). */
-#define STATE_SLOTS 4
-
-static void state_path(int slot, char *path, size_t size)
-{
-	char name[16];
-	snprintf(name, sizeof name, "state%d.sav", slot + 1);
-	bmatarist_card_path(path, size, "snapshots", name);
-}
-
-/* "Slot 2: 2026-10-20 19:31", or "Slot 2: (empty)". */
-static void state_label(int slot, char *text, size_t size)
-{
-	char path[256];
-	struct stat st;
-	state_path(slot, path, sizeof path);
-	if (stat(path, &st) == 0) {
-		struct tm *t = localtime(&st.st_mtime);
-		if (t != NULL)
-			snprintf(text, size, "Slot %d: %04d-%02d-%02d %02d:%02d", slot + 1,
-			         t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
-		else
-			snprintf(text, size, "Slot %d: saved", slot + 1);
-	} else {
-		snprintf(text, size, "Slot %d: (empty)", slot + 1);
-	}
-}
-
-/* Returns TRUE if a state was loaded (the menu then closes). */
-static int states_menu(int load)
-{
-	char labels[STATE_SLOTS][48];
-	const char *choices[STATE_SLOTS + 1];
-	char path[256], dir[256];
-	struct stat st;
-	int i;
-	for (i = 0; i < STATE_SLOTS; i++) {
-		state_label(i, labels[i], sizeof labels[i]);
-		choices[i] = labels[i];
-	}
-	choices[STATE_SLOTS] = NULL;
-	i = osd_choose(load ? "Load State" : "Save State", choices, 0);
-	if (i < 0)
-		return FALSE;
-	state_path(i, path, sizeof path);
-	if (load) {
-		if (stat(path, &st) != 0) {
-			osd_message("That slot is empty.", TRUE);
-			return FALSE;
-		}
-		printf("BMAtariST: loading %s\n", path);
-		MemorySnapShot_Restore(path, false);
-		return TRUE;
-	}
-	bmatarist_card_path(dir, sizeof dir, "snapshots", "");
-	mkdir(dir, 0777);
-	printf("BMAtariST: saving %s\n", path);
-	MemorySnapShot_Capture_Immediate(path, false);
-	if (stat(path, &st) != 0 || st.st_size == 0)
-		osd_message("Cannot save the state on the SD card.", TRUE);
-	else
-		osd_notify("State saved");
-	return FALSE;
-}
-
 /* ---- Information ----------------------------------------------------------- */
 
 static void about(void)
 {
-	char text[900], status[64];
+	char text[1800], status[64];
 	int w, h;
 	host_display_size(&w, &h);
 	host_network_status(status, sizeof(status));
 	snprintf(text, sizeof(text),
-	         "BMAtariST " BMATARIST_VERSION "\n"
-	         "Bare metal Atari ST, STE, TT and Falcon emulator for the\n"
-	         "Raspberry Pi.\n\n"
-	         "Emulation: " PROG_NAME " (GPL 2 or later), by the Hatari team.\n"
-	         "TOS: EmuTOS (GPL 2), or your own.\n"
-	         "Based on BMApple2, BMCoco, BMA800XL and BMC64.\n\n"
+	         "BMNeXT " BMNEXT_VERSION "\n"
+	         "Bare metal NeXT Computer, NeXTcube and NeXTstation\n"
+	         "emulator for the Raspberry Pi 4 and 5.\n\n"
+	         "Emulation: " PROG_NAME " (GPL 2 or later), by Andreas\n"
+	         "Grabher, Simon Schubiger and Gilles Fetis, from Hatari.\n"
+	         "ROM and NeXTSTEP: your own.\n"
+	         "Based on BMAtariST, BMApple2, BMCoco, BMA800XL and BMC64.\n\n"
 	         "Machine: %s\n"
-	         "TOS: %s\n"
+	         "ROM: %s\n"
 	         "Speed: %d%% of the real machine's\n"
-	         "Display: %dx%d %.2f Hz, frames %s\n"
+	         "Display: %dx%d %.2f Hz\n"
 	         "Network: %s",
-	         machine_names[ConfigureParams.System.nMachineType % 6], tos_value(),
-	         bmatarist_speed_percent(), w, h, bmatarist_refresh_rate(),
-	         bmatarist_vsync_locked() ? "locked to the display" : "timer paced", status);
-	osd_info("About BMAtariST", text);
+	         bmnext_machine_text(), rom_value(), bmnext_speed_percent(), w, h,
+	         bmnext_refresh_rate(), status);
+	osd_info("About BMNeXT", text);
 }
 
 static void offer_reboot(void)
@@ -1086,29 +803,22 @@ static void offer_reboot(void)
 
 /* ---- Main menu ---------------------------------------------------------------- */
 
-void bmatarist_menu(void)
+void bmnext_menu(void)
 {
-	enum { M_DISKS, M_HD, M_SAVE, M_LOAD, M_RESET, M_RESTART, M_MACHINE, M_JOYSTICKS,
-	       M_VIDEO, M_SOUND, M_NETWORK, M_ABOUT, M_REBOOT, M_OFF };
+	enum { M_DISKS, M_RESTART, M_MACHINE, M_VIDEO, M_SOUND, M_NETWORK, M_ABOUT,
+	       M_REBOOT, M_OFF };
 	static int sel = 0;
 	char title[48], speed[48];
 
-	snprintf(title, sizeof(title), "BMAtariST %s", BMATARIST_VERSION);
+	snprintf(title, sizeof(title), "BMNeXT %s", BMNEXT_VERSION);
 	reboot_needed = FALSE;
 	osd_open();
 	for (;;) {
-		const char *a = ConfigureParams.DiskImage.szDiskFileName[0];
 		struct osd_item items[] = {
-			{"Floppy Disks", a[0] ? base_name(a) : NULL, OSD_ITEM_SUBMENU, M_DISKS},
-			{"Hard Disks", NULL, OSD_ITEM_SUBMENU, M_HD},
-			{"Save State", NULL, OSD_ITEM_SUBMENU, M_SAVE},
-			{"Load State", NULL, OSD_ITEM_SUBMENU, M_LOAD},
-			{"Reset (the ST's reset button)", NULL, 0, M_RESET},
-			{"Restart (switch the ST off and on)", NULL, 0, M_RESTART},
+			{"Disks", NULL, OSD_ITEM_SUBMENU, M_DISKS},
+			{"Restart (switch the NeXT off and on)", NULL, 0, M_RESTART},
 			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"Machine", machine_names[ConfigureParams.System.nMachineType % 6],
-			 OSD_ITEM_SUBMENU, M_MACHINE},
-			{"Joysticks", NULL, OSD_ITEM_SUBMENU, M_JOYSTICKS},
+			{"Machine", bmnext_machine_text(), OSD_ITEM_SUBMENU, M_MACHINE},
 			{"Video", NULL, OSD_ITEM_SUBMENU, M_VIDEO},
 			{"Sound", NULL, OSD_ITEM_SUBMENU, M_SOUND},
 			{"Network", NULL, OSD_ITEM_SUBMENU, M_NETWORK},
@@ -1121,24 +831,19 @@ void bmatarist_menu(void)
 		};
 		int chosen, leave = FALSE;
 		snprintf(speed, sizeof speed, "Running at %d%% of the real machine's speed.",
-		         bmatarist_speed_percent());
+		         bmnext_speed_percent());
 		chosen = osd_menu(title, items, sizeof(items) / sizeof(items[0]), &sel);
 
 		switch (chosen) {
 		case M_DISKS: disks_menu(); break;
-		case M_HD: hard_disks_menu(); break;
-		case M_SAVE: states_menu(FALSE); leave = TRUE; break;
-		case M_LOAD: leave = states_menu(TRUE); break;
-		case M_RESET: bmatarist_warm_reset(); leave = TRUE; break;
-		case M_RESTART: bmatarist_cold_reset(); leave = TRUE; break;
+		case M_RESTART: bmnext_cold_reset(); leave = TRUE; break;
 		case M_MACHINE: machine_menu(); break;
-		case M_JOYSTICKS: joysticks_menu(); break;
 		case M_VIDEO: video_menu(); break;
 		case M_SOUND: sound_menu(); break;
 		case M_NETWORK: network_menu(); break;
 		case M_ABOUT: about(); break;
 		case M_REBOOT:
-			if (osd_confirm("Reboot", "Reboot BMAtariST?"))
+			if (osd_confirm("Reboot", "Reboot BMNeXT?"))
 				power(0);
 			break;
 		case M_OFF:
@@ -1149,7 +854,7 @@ void bmatarist_menu(void)
 			leave = TRUE;
 			break;
 		}
-		if (leave || osd_closing() || bmatarist_pending_requests())
+		if (leave || osd_closing() || bmnext_pending_requests())
 			break;
 	}
 	if (reboot_needed && !osd_closing())

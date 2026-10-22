@@ -1,9 +1,9 @@
 #!/bin/sh
 #
-# Prints the BMAtariST version: the semantic version from the VERSION file
+# Prints the BMNeXT version: the semantic version from the VERSION file
 # and the git commit, for example "1.0.0 (288b2f4)".
 #   --semver  only the semantic version
-#   --git     only the git commit, with "-dirty" if BMAtariST's own files
+#   --git     only the git commit, with "-dirty" if BMNeXT's own files
 #             have uncommitted changes. Changes inside the submodules
 #             (make_all.sh patches Circle) don't count.
 #

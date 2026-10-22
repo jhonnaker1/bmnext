@@ -2,15 +2,15 @@
 // options.h
 //
 // Reads key=value options from cmdline.txt on the SD card, and from
-// bmatarist.cfg, where the BMAtariST menu saves its settings. A setting in
-// bmatarist.cfg wins over the same option in cmdline.txt.
+// bmnext.cfg, where the BMNeXT menu saves its settings. A setting in
+// bmnext.cfg wins over the same option in cmdline.txt.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_OPTIONS_H_
-#define BMATARIST_OPTIONS_H_
+#ifndef BMNEXT_OPTIONS_H_
+#define BMNEXT_OPTIONS_H_
 
 #include <circle/bcmpropertytags.h>
 

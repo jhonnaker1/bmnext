@@ -1,12 +1,12 @@
 #
-# BMAtariST - bare metal Atari ST, STE, TT and Falcon emulator for the
-# Raspberry Pi 2, 3, 4 and 5
+# BMNeXT - bare metal NeXT emulator for the Raspberry Pi 4 and 5
 #
 # Raspberry Pi firmware settings. Emulator options are in cmdline.txt.
 #
 
-# BMAtariST runs in 32 bit mode on the Pi Zero, 2 and 3, and in 64 bit mode
-# on the Pi 4 and 5, with a kernel for each board.
+# BMNeXT runs in 64 bit mode on the Pi 4 and 5, with a kernel for each
+# (the family's 32 bit kernels for the Pi Zero, 2 and 3 are too slow for
+# the NeXT, and not on the card).
 arm_64bit=0
 # [pi0] also matches the Zero 2 W, which [pi02] then sets to the Pi 3's.
 [pi0]
@@ -35,31 +35,25 @@ framebuffer_depth=32
 framebuffer_ignore_alpha=1
 [all]
 
-# Video: 1280x720 at 60 Hz, the right rate for an NTSC ST (60.04 Hz), as
-# EmuTOS's US version (the one on the card) sets it up. A PAL ST runs at
-# 50.05 Hz: hdmi_mode=19 below. The emulator's frames are locked to the
-# display when its refresh rate is that close, which gives perfectly smooth
-# scrolling. On the Pi 4, Pi 400 and Pi 5 BMAtariST sets the display to the
-# ST's exact rate itself, PAL, NTSC or the monochrome monitor's 71 Hz
-# (see docs/PI4.md); hdmi_mode only chooses the resolution on the Pi 4 (the
-# Pi 5's firmware uses the display's preferred one; choose it under Video,
-# Resolution).
+# Video: 1920x1080 at 60 Hz. The NeXT's display is 1120x832: it needs 1080
+# lines to be shown whole, pixel for pixel (at 720p it would be shrunk).
+# hdmi_mode only chooses the resolution on the Pi 4 (the Pi 5's firmware
+# uses the display's preferred one; choose it under Video, Resolution).
 disable_overscan=1
 hdmi_group=1
-hdmi_mode=4
+hdmi_mode=16
 
 # The same for the Pi 4's second HDMI port (HDMI1), which the lines above
 # don't cover.
 [pi4]
 hdmi_group:1=1
-hdmi_mode:1=4
+hdmi_mode:1=16
 [all]
 
 # Other useful modes (hdmi_group=1):
 #   hdmi_mode=19  720p  50 Hz        hdmi_mode=4   720p  60 Hz
 #   hdmi_mode=31  1080p 50 Hz        hdmi_mode=16  1080p 60 Hz
-# The CRT shader looks best at 1080p, especially with curvature; sharp
-# pixels then have black bars above and below.
+# The NeXT's 832 lines need 1080p; at 720p the picture is shrunk to fit.
 
 # Uncomment if you get no picture
 #hdmi_safe=1

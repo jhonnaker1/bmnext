@@ -4,11 +4,11 @@
 # build/sdcard. Copy the contents of that folder to the root of a FAT32
 # formatted SD card.
 #
-#   ./build_sdcard.sh [pi0|pi2|pi3|pi4|pi5 ...] [--skip-patches] [--skip-tests]
+#   ./build_sdcard.sh [pi4|pi5 ...] [--skip-patches] [--skip-tests]
 #
-#   pi3     kernel8-32.img: Pi 3 and Pi Zero 2 W
-#   pi2     kernel7.img: Pi 2
-#   pi0     kernel.img: Pi Zero and Zero W
+# The NeXT's 68030 and 68040 need a Pi 4 or 5 (the family's other boards,
+# pi0, pi2 and pi3, can still be given, but are too slow):
+#
 #   pi4     kernel8-rpi4.img and armstub8-rpi4.bin: Pi 4 B and Pi 400
 #   pi5     kernel_2712.img: Pi 5, Pi 500 and Pi 500+
 #   (none)  all of them, as a release has
@@ -16,7 +16,9 @@
 # Several boards can be given, e.g. ./build_sdcard.sh pi4 pi5.
 #
 # The PC tests (tools/hostsim, tools/pi4kms, tools/pi4scaler) run first, and
-# the build stops if any of them fails. --skip-tests leaves them out.
+# the build stops if any of them fails. --skip-tests leaves them out;
+# tools/hostsim's need your NeXT ROMs (BMNEXT_ROMS=folder), and are left
+# out without them.
 #
 # Without --skip-patches each board is built from clean_all.sh. With it, the
 # third party libraries already built are kept and only the kernel is
@@ -34,7 +36,7 @@ BUILD_DIR="$SRC_DIR/build"
 STAGING_DIR="$BUILD_DIR/sdcard"
 # circle-stdlib's configure writes the board (RASPPI) into Circle's Config.mk.
 CIRCLE_CONFIG="$SRC_DIR/third_party/circle-stdlib/libs/circle/Config.mk"
-ALL_BOARDS=(pi0 pi2 pi3 pi4 pi5)
+ALL_BOARDS=(pi4 pi5)
 BOARDS=()
 SKIP_PATCHES=0
 SKIP_TESTS=0
@@ -109,7 +111,12 @@ then
     fi
 fi
 
-# The PC tests (tools/hostsim, with EmuTOS).
+# The PC tests (tools/hostsim, with the user's NeXT ROMs in $BMNEXT_ROMS:
+# they are not part of BMNeXT).
+if [ "$SKIP_TESTS" -eq 0 ] && [ -z "${BMNEXT_ROMS:-}" ]
+then
+    echo "BMNEXT_ROMS is not set: the PC simulator's tests are skipped." >&2
+fi
 if [ "$SKIP_TESTS" -eq 0 ]
 then
     echo "=============================================================="
@@ -122,7 +129,10 @@ then
             exit 1
         fi
     }
-    run_tests "$SRC_DIR/tools/hostsim/run_tests.sh"
+    if [ -n "${BMNEXT_ROMS:-}" ]
+    then
+        run_tests "$SRC_DIR/tools/hostsim/run_tests.sh"
+    fi
     run_tests "$SRC_DIR/tools/pi4kms/run_tests.sh"
     run_tests "$SRC_DIR/tools/pi4scaler/run_tests.sh"
 fi
@@ -154,17 +164,10 @@ folder_readme() {
     mkdir -p "$STAGING_DIR/$1"
     printf '%s\r\n' "$2" > "$STAGING_DIR/$1/README.txt"
 }
-folder_readme disks    "Floppy disk images: .st .msa .dim .stx .scp, also zipped or gzipped (insert them from the menu, F12, Floppy Disks, or start one from the web UI)"
-folder_readme snapshots "Saved states (menu, F12, Save State and Load State)"
-folder_readme hd       "Hard disks: a folder here can be the ST's drive C: (menu, F12, Hard Disks, Folder as a Drive), and ACSI or IDE hard disk images go here too"
-# EmuTOS, so the card starts with nothing added; the user's own TOS images
-# go in the same folder.
-if ! "$SRC_DIR/make_emutos.sh" "$STAGING_DIR"
-then
-    echo "EmuTOS could not be fetched (it is cached once it has been)." >&2
-    exit 1
-fi
-cp "$SRC_DIR/docs/TOS.txt" "$STAGING_DIR/tos/TOS.txt"
+folder_readme disks    "Disk images: NeXTSTEP on a SCSI hard disk image, CD-ROM, optical and floppy disk images (insert them from the menu, F12, Disks, or start one from the web UI)"
+# The NeXT's ROMs are the user's own (docs/ROMS.txt).
+mkdir -p "$STAGING_DIR/roms"
+cp "$SRC_DIR/docs/ROMS.txt" "$STAGING_DIR/roms/ROMS.txt"
 
 for board in "${BOARDS[@]}"
 do
@@ -176,9 +179,9 @@ do
     then
         if [ "$board" = "pi4" ] || [ "$board" = "pi5" ]
         then
-            export BMATARIST_AARCH=64
+            export BMNEXT_AARCH=64
         else
-            export BMATARIST_AARCH=32
+            export BMNEXT_AARCH=32
         fi
         source "$SRC_DIR/get_gnu_toolchain.sh"
         make -j"$(nproc)"

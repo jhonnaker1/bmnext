@@ -1,37 +1,32 @@
 /*
- * audio.c - Hatari's sound output for BMAtariST.
+ * audio.c - Previous's sound output for BMNeXT.
  *
- * Replaces Hatari's src/sdl/audio.c (SDL's audio callback) with the kernel's
- * sound output (host.h), as src/retro/audio.c does for libretro: Hatari's
- * sound.c mixes the YM2149, the STE's DMA sound and the Falcon's into
- * AudioMixBuffer (16-bit stereo) as the emulation goes, and calls
- * Audio_Unlock() after each batch; the batch is written out from there.
+ * Replaces Previous's src/gui-sdl/sdlaudio.c (an SDL audio stream) with the
+ * kernel's sound output (host.h). The NeXT plays 16-bit big endian stereo at
+ * 44.1 kHz (snd.c); its DMA hands each batch to Audio_Output_Queue_Put(),
+ * which plays it at once: converted to the output's rate (48 kHz over the
+ * Pi 4 and 5's HDMI) and kept about half full, squeezed or stretched a
+ * little, the more the further the buffer is from half full, up to 2% (as
+ * BMCoco, BMApple2 and BMAtariST do). Previous waits for its queue to
+ * empty before sending more (Audio_Output_Queue_Size()); BMNeXT's has
+ * nothing waiting in it, so the NeXT's own pace (Timing_Sync()) decides.
  *
- * The emulation runs at the display's pace or a timer's, never quite the
- * sound output's (an ST's 50.05 Hz locked to a 50 Hz display is 0.1% fast),
- * so the output is kept about half full: the sound is squeezed or
- * stretched a little, the more the further the buffer is from half full,
- * up to 2% (as BMCoco and BMApple2 do). Dropping a whole sample, or what
- * doesn't fit, clicks.
+ * Sound input (the NeXT's microphone, and the DSP's) is silence.
  *
- * This file is part of BMAtariST, a bare metal Atari ST emulator for the
+ * This file is part of BMNeXT, a bare metal NeXT emulator for the
  * Raspberry Pi. See LICENSE for licensing details.
  */
 
-const char Audio_fileid[] = "BMAtariST audio.c";
+const char Audio_fileid[] = "BMNeXT audio.c";
 
 #include "main.h"
 #include "audio.h"
 #include "configuration.h"
-#include "sound.h"
 
 #include "../host.h"
-#include "bmatarist.h"
+#include "bmnext.h"
 
-bool bSoundWorking = false;
-int SoundBufferSize = 1024 / 4;      /* in samples: Hatari's lead (sound.c) */
-int SdlAudioBufferSize = 0;
-int pulse_swallowing_count = 0;
+#define NEXT_RATE 44100
 
 static bool playing;
 static unsigned out_rate;            /* 0: no sound */
@@ -41,7 +36,7 @@ static int volume = -1;              /* 0-100, -1 until read */
 
 /* ---- Volume ---------------------------------------------------------------- */
 
-int bmatarist_volume(void)
+int bmnext_volume(void)
 {
 	if (volume < 0) {
 		volume = host_option_int("volume", 100);
@@ -53,20 +48,20 @@ int bmatarist_volume(void)
 	return volume;
 }
 
-void bmatarist_set_volume(int v)
+void bmnext_set_volume(int v)
 {
 	char text[8];
 	volume = v < 0 ? 0 : v > 100 ? 100 : v;
 	snprintf(text, sizeof text, "%d", volume);
 	if (!host_option_set("volume", text) || !host_options_save())
-		printf("BMAtariST: cannot save volume= in bmatarist.cfg\n");
+		printf("BMNeXT: cannot save volume= in bmnext.cfg\n");
 }
 
 /* N stereo frames to the output, at the volume. */
 static void write_frames(const int16_t *samples, unsigned n)
 {
 	static int16_t scaled[1024 * 2];
-	int v = bmatarist_volume();
+	int v = bmnext_volume();
 	if (v >= 100) {
 		host_sound_write(samples, n);
 		return;
@@ -83,26 +78,22 @@ static void write_frames(const int16_t *samples, unsigned n)
 
 /* ---- Output ---------------------------------------------------------------- */
 
-#define AO_RATE 48000
-
-unsigned bmatarist_sound_open(void)
+unsigned bmnext_sound_open(void)
 {
 	unsigned ms = (unsigned) host_option_int("audio_buffer_ms", 60);
 	if (ms < 20)
 		ms = 20;
 	if (ms > 500)
 		ms = 500;
-	/* The output may run at another rate (the VideoCore's 44.1 kHz on the
-	   Pi Zero to 3): Hatari then makes its sound at that rate. The
-	   latency is asked for in 44.1 kHz frames (host.h). */
-	out_rate = host_sound_open(AO_RATE, 2, 44100 * ms / 1000);
-	out_latency = (out_rate ? out_rate : AO_RATE) * ms / 1000;
+	/* The latency is asked for in 44.1 kHz frames (host.h). */
+	out_rate = host_sound_open(NEXT_RATE, 2, 44100 * ms / 1000);
+	out_latency = (out_rate ? out_rate : NEXT_RATE) * ms / 1000;
 	if (out_rate == 0)
-		printf("BMAtariST: no sound\n");
+		printf("BMNeXT: no sound\n");
 	return out_rate;
 }
 
-void bmatarist_feed_silence(void)
+void bmnext_feed_silence(void)
 {
 	unsigned frames;
 	if (out_rate == 0)
@@ -137,13 +128,14 @@ static void resample(const int16_t *in, unsigned n, int16_t *out, unsigned want)
 	}
 }
 
-/* Up to PLAY_CHUNK stereo frames to the output, squeezed or stretched to
-   keep the buffer about half full. */
+/* Up to PLAY_CHUNK stereo frames (at 44.1 kHz) to the output, at its rate,
+   squeezed or stretched to keep the buffer about half full. */
 static void play_chunk(const int16_t *samples, unsigned n)
 {
-	static int16_t buf[(PLAY_CHUNK * 2 + 1) * 2];
+	static int16_t buf[(PLAY_CHUNK * 4 + 1) * 2];
 	static double carry;   /* the fraction of a frame left over */
 	unsigned free_frames, used, want;
+	double scale = (double) out_rate / NEXT_RATE;
 	free_frames = host_sound_free_frames();
 	used = free_frames < out_latency ? out_latency - free_frames : 0;
 	if (n < 2) {
@@ -153,9 +145,7 @@ static void play_chunk(const int16_t *samples, unsigned n)
 		   slow for it): stretched to up to twice its length, lower in
 		   pitch, rather than gaps. */
 		unsigned quarter = out_latency / 4;
-		want = n + 1 + n * (quarter - used) / quarter;
-		if (want > PLAY_CHUNK * 2 + 1)
-			want = PLAY_CHUNK * 2 + 1;
+		want = (unsigned) (n * scale) + 1 + (unsigned) (n * scale) * (quarter - used) / quarter;
 		carry = 0.0;
 	} else {
 		double half = out_latency / 2.0;
@@ -165,10 +155,12 @@ static void play_chunk(const int16_t *samples, unsigned n)
 			error = 1.0;
 		if (error < -1.0)
 			error = -1.0;
-		exact = n * (1.0 + 0.02 * error) + carry;
+		exact = n * scale * (1.0 + 0.02 * error) + carry;
 		want = (unsigned) exact;
 		carry = exact - want;
 	}
+	if (want > PLAY_CHUNK * 4 + 1)
+		want = PLAY_CHUNK * 4 + 1;
 	if (want != n) {
 		resample(samples, n, buf, want);
 		samples = buf;
@@ -180,67 +172,85 @@ static void play_chunk(const int16_t *samples, unsigned n)
 		write_frames(samples, n);
 }
 
-/* N stereo frames to the output. */
-static void play(const int16_t *samples, unsigned n)
+/* ---- Previous's audio functions ---------------------------------------------- */
+
+void Audio_Output_Init(int channels, int freq)
 {
+	if (channels != 2 || freq != NEXT_RATE)
+		printf("BMNeXT: sound at %d Hz, %d channel(s)? Expected 44100, 2\n", freq, channels);
+}
+
+void Audio_Output_UnInit(void)
+{
+	playing = false;
+}
+
+void Audio_Output_Enable(bool bEnable)
+{
+	playing = bEnable && ConfigureParams.Sound.bEnableSound;
+}
+
+/* LEN bytes of 16-bit big endian stereo. */
+void Audio_Output_Queue_Put(uint8_t *data, int len)
+{
+	int16_t frames[PLAY_CHUNK * 2];
+	int n = len / 4;
+	if (!playing || out_rate == 0)
+		return;
 	while (n > 0) {
-		unsigned m = n > PLAY_CHUNK ? PLAY_CHUNK : n;
-		play_chunk(samples, m);
-		samples += m * 2;
+		int m = n > PLAY_CHUNK ? PLAY_CHUNK : n, i;
+		for (i = 0; i < m * 2; i++)
+			frames[i] = (int16_t) ((data[i * 2] << 8) | data[i * 2 + 1]);
+		play_chunk(frames, (unsigned) m);
+		data += m * 4;
 		n -= m;
 	}
 }
 
-/* ---- Hatari's audio functions ---------------------------------------------- */
-
-/* Hatari makes its sound at the output's rate: the platform layer passes
-   it with --sound, and out_rate is already known by then (it opens the
-   output first). */
-void Audio_Init(void)
-{
-	if (!ConfigureParams.Sound.bEnableSound) {
-		bSoundWorking = false;
-		return;
-	}
-	bSoundWorking = true;
-	Audio_EnableAudio(ConfigureParams.Sound.bEnableSound);
-}
-
-void Audio_UnInit(void)
-{
-	Audio_EnableAudio(false);
-	bSoundWorking = false;
-}
-
-void Audio_Lock(void)
+void Audio_Output_Queue_Flush(void)
 {
 }
 
-/* Some samples have just been made (sound.c): out with them. */
-void Audio_Unlock(void)
-{
-	int n = nGeneratedSamples;
-	int pos = AudioMixBuffer_pos_read;
-	if (playing && out_rate != 0) {
-		while (n > 0) {
-			int m = n;
-			if (pos + m > AUDIOMIXBUFFER_SIZE)
-				m = AUDIOMIXBUFFER_SIZE - pos;
-			play(&AudioMixBuffer[pos][0], (unsigned) m);
-			pos = (pos + m) & AUDIOMIXBUFFER_SIZE_MASK;
-			n -= m;
-		}
-	}
-	AudioMixBuffer_pos_read = (AudioMixBuffer_pos_read + nGeneratedSamples)
-	                          & AUDIOMIXBUFFER_SIZE_MASK;
-	nGeneratedSamples = 0;
-}
-
-void Audio_FreeSoundBuffer(void)
+void Audio_Output_Queue_Clear(void)
 {
 }
 
-void Audio_EnableAudio(bool bEnable)
+int Audio_Output_Queue_Size(void)
 {
-	playing = bEnable && bSoundWorking;
+	return 0;
+}
+
+/* ---- Recording: silence ---------------------------------------------------- */
+
+void Audio_Input_InitAndEnable(int channels, int freq)
+{
+}
+
+void Audio_Input_UnInit(void)
+{
+}
+
+int Audio_Input_Buffer_Get(int16_t *sample)
+{
+	*sample = 0;
+	return 0;
+}
+
+int Audio_Input_Buffer_Size(void)
+{
+	return 0;
+}
+
+void Audio_DSP_InitAndEnable(int channels, int freq)
+{
+}
+
+void Audio_DSP_UnInit(void)
+{
+}
+
+int Audio_DSP_Buffer_Get(int16_t *sample)
+{
+	*sample = 0;
+	return 0;
 }

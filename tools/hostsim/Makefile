@@ -6,71 +6,72 @@
 #
 
 ROOT := ../..
-HATARI := $(ROOT)/third_party/hatari/src
+PREVIOUS := $(ROOT)/third_party/previous/src
 ZLIB := $(ROOT)/third_party/zlib
-include $(ROOT)/src/port/hatari.mk
+include $(ROOT)/src/port/previous.mk
 
 CC ?= cc
 HOSTCC ?= cc
 OUT := build
 GEN := $(OUT)/gen
 
-HATARI_INCLUDES = -I $(ROOT)/src/port -I $(HATARI)/includes -I $(HATARI)/debug \
-                  -I $(HATARI)/falcon -I $(HATARI)/cpu -I $(HATARI)/cpu/softfloat \
-                  -I $(HATARI) -I $(GEN) -I $(ZLIB)
-CFLAGS = -O2 -g -DBMATARIST_HOST_LIBC
-HATARI_FLAGS = $(CFLAGS) $(HATARI_CFLAGS) $(HATARI_INCLUDES) \
-               -include $(ROOT)/src/port/compat/hatari_prefix.h
+PREVIOUS_INCLUDES = -I $(ROOT)/src/port -I $(ROOT)/src/port/compat \
+                    $(addprefix -I $(PREVIOUS)/,$(PREVIOUS_INCLUDE_DIRS)) \
+                    -I $(PREVIOUS) -I $(GEN) -I $(ZLIB)
+CFLAGS = -O2 -g -DBMNEXT_HOST_LIBC
+PREVIOUS_FLAGS = $(CFLAGS) $(PREVIOUS_CFLAGS) $(PREVIOUS_INCLUDES) \
+                 -include $(ROOT)/src/port/compat/previous_prefix.h
 
-PORT_SRCS = platform.c menu.c osd.c posix_extra.c $(HATARI_PORT_SRCS)
+PORT_SRCS = platform.c menu.c osd.c posix_extra.c $(PREVIOUS_PORT_SRCS)
 
-OBJS := $(addprefix $(OUT)/hatari/,$(HATARI_CORE_SRCS:.c=.o)) \
-        $(addprefix $(OUT)/hatari/cpu/,$(HATARI_CPU_SRCS:.c=.o)) \
-        $(addprefix $(OUT)/gen/,$(HATARI_CPUGEN_SRCS:.c=.o) $(HATARI_CPUDEFS_SRC:.c=.o)) \
-        $(addprefix $(OUT)/hatari/falcon/,$(HATARI_FALCON_SRCS:.c=.o)) \
-        $(addprefix $(OUT)/hatari/debug/,$(HATARI_DEBUG_SRCS:.c=.o)) \
+OBJS := $(addprefix $(OUT)/previous/,$(PREVIOUS_CORE_SRCS:.c=.o)) \
+        $(addprefix $(OUT)/previous/cpu/,$(PREVIOUS_CPU_SRCS:.c=.o)) \
+        $(addprefix $(OUT)/gen/,$(PREVIOUS_CPUGEN_SRCS:.c=.o) $(PREVIOUS_CPUDEFS_SRC:.c=.o)) \
+        $(addprefix $(OUT)/previous/softfloat/,$(PREVIOUS_SOFTFLOAT_SRCS:.c=.o)) \
+        $(addprefix $(OUT)/previous/dsp/,$(PREVIOUS_DSP_SRCS:.c=.o)) \
+        $(addprefix $(OUT)/previous/debug/,$(PREVIOUS_DEBUG_SRCS:.c=.o)) \
         $(addprefix $(OUT)/zlib/,$(ZLIB_SRCS:.c=.o)) \
         $(addprefix $(OUT)/port/,$(PORT_SRCS:.c=.o)) \
         $(OUT)/host_sim.o $(OUT)/live.o
 
-all: $(OUT)/bmatarist_sim
+all: $(OUT)/bmnext_sim
 
-$(OUT)/bmatarist_sim: $(OBJS)
+$(OUT)/bmnext_sim: $(OBJS)
 	$(CC) -o $@ $(OBJS) -lm
 
-# The CPU core's generated sources, as Hatari's build makes them
+# The CPU core's generated sources, as Previous's build makes them
 # (src/cpu/CMakeLists.txt).
-$(GEN)/build68k: $(HATARI)/cpu/build68k.c $(HATARI)/cpu/writelog.c
+$(GEN)/build68k: $(PREVIOUS)/cpu/build68k.c $(PREVIOUS)/cpu/writelog.c
 	@mkdir -p $(GEN)
-	$(HOSTCC) -I $(HATARI)/cpu -I $(HATARI)/includes -I $(ROOT)/src/port -o $@ $^
+	$(HOSTCC) -I $(PREVIOUS)/cpu -I $(PREVIOUS)/includes -I $(ROOT)/src/port -o $@ $^
 
-$(GEN)/cpudefs.c: $(GEN)/build68k $(HATARI)/cpu/table68k
-	$(GEN)/build68k < $(HATARI)/cpu/table68k > $@
+$(GEN)/cpudefs.c: $(GEN)/build68k $(PREVIOUS)/cpu/table68k
+	$(GEN)/build68k < $(PREVIOUS)/cpu/table68k > $@
 
-$(GEN)/gencpu: $(GEN)/cpudefs.c $(HATARI)/cpu/gencpu.c $(HATARI)/cpu/readcpu.c
-	$(HOSTCC) -I $(HATARI)/cpu -I $(HATARI)/includes -I $(ROOT)/src/port -o $@ $^
+$(GEN)/gencpu: $(GEN)/cpudefs.c $(PREVIOUS)/cpu/gencpu.c $(PREVIOUS)/cpu/readcpu.c
+	$(HOSTCC) -I $(PREVIOUS)/cpu -I $(PREVIOUS)/includes -I $(ROOT)/src/port -o $@ $^
 
 # gencpu writes into the current folder.
 $(GEN)/cpustbl.c: $(GEN)/gencpu
 	cd $(GEN) && ./gencpu > /dev/null
 
-$(addprefix $(GEN)/,$(filter-out cpustbl.c,$(HATARI_CPUGEN_SRCS))) $(GEN)/cputbl.h: $(GEN)/cpustbl.c
+$(addprefix $(GEN)/,$(filter-out cpustbl.c,$(PREVIOUS_CPUGEN_SRCS))) $(GEN)/cputbl.h: $(GEN)/cpustbl.c
 
 $(OUT)/gen/%.o: $(GEN)/%.c
-	@$(CC) $(HATARI_FLAGS) -c -o $@ $<
+	@$(CC) $(PREVIOUS_FLAGS) -c -o $@ $<
 
-$(OUT)/hatari/%.o: $(HATARI)/%.c $(GEN)/cputbl.h
+$(OUT)/previous/%.o: $(PREVIOUS)/%.c $(GEN)/cputbl.h
 	@mkdir -p $(dir $@)
-	@$(CC) $(HATARI_FLAGS) -c -o $@ $<
+	@$(CC) $(PREVIOUS_FLAGS) -c -o $@ $<
 
 $(OUT)/zlib/%.o: $(ZLIB)/%.c
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) $(ZLIB_CFLAGS) -c -o $@ $<
 
-$(OUT)/port/%.o: $(ROOT)/src/port/%.c $(ROOT)/src/port/bmatarist.h \
+$(OUT)/port/%.o: $(ROOT)/src/port/%.c $(ROOT)/src/port/bmnext.h \
                  $(ROOT)/src/port/osd.h $(ROOT)/src/host.h $(GEN)/cputbl.h
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -std=gnu11 $(HATARI_INCLUDES) -include $(ROOT)/src/port/compat/hatari_prefix.h \
+	$(CC) $(CFLAGS) -std=gnu11 $(PREVIOUS_INCLUDES) -include $(ROOT)/src/port/compat/previous_prefix.h \
 	      -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -c -o $@ $<
 
 $(OUT)/host_sim.o: host_sim.c live.h $(ROOT)/src/host.h

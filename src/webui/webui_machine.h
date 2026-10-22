@@ -32,7 +32,7 @@ struct WebUiMachine {
 
 const WebUiMachine *WebUiMachineGet(void);
 
-// The machine running, as the menu names it ("Atari STE", "Falcon 030").
+// The machine running, as the menu names it ("NeXTstation Turbo").
 const char *WebUiMachineName(void);
 
 // TRUE if Autostart accepts files with this extension (any case).

@@ -5,7 +5,7 @@
 // Modified for BMA800XL from BMC64's network start up (viceapp.cpp,
 // vice_network.cpp): rewritten to take its settings from cmdline.txt and
 // start the web UI and network time.
-// Changed for BMAtariST.
+// Changed for BMNeXT.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef BMATARIST_NETWORK_H_
-#define BMATARIST_NETWORK_H_
+#ifndef BMNEXT_NETWORK_H_
+#define BMNEXT_NETWORK_H_
 
 class Options;
 

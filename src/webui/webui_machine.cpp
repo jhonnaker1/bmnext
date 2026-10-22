@@ -3,7 +3,7 @@
 //
 // Modified for BMA800XL: the Atari 800XL's name, settings file and the
 // file types atari800 can start, in place of BMC64's machines.
-// Changed for BMCoco and BMApple2, and for BMAtariST: the Atari ST.
+// Changed for BMCoco, BMApple2 and BMAtariST, and for BMNeXT: the NeXT.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,19 +26,18 @@
 #include <stdio.h>
 
 // The machine running (src/port/platform.c).
-extern "C" const char *bmatarist_machine_text(void);
+extern "C" const char *bmnext_machine_text(void);
 
 namespace {
 
-// The floppy images Hatari can start (emu_autostart_interrupt() in
-// src/port/platform.c puts them in drive A: and restarts the ST), zipped
-// or gzipped too.
+// The disk images the NeXT can start from (emu_autostart_interrupt() in
+// src/port/platform.c makes them its first SCSI disk and restarts it).
 const char *const kRunTypes[] = {
-    "st", "msa", "dim", "stx", "scp", "zip", "gz", 0,
+    "dsk", "img", "dd", "hd", "raw", 0,
 };
 
 const WebUiMachine kMachine = {
-    "/hatari.cfg", kRunTypes,
+    "/previous.cfg", kRunTypes,
 };
 
 char Lower(char c) {
@@ -52,7 +51,7 @@ const WebUiMachine *WebUiMachineGet(void) {
 }
 
 const char *WebUiMachineName(void) {
-  return bmatarist_machine_text();
+  return bmnext_machine_text();
 }
 
 boolean WebUiMachineCanRun(const char *ext) {

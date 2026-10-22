@@ -1,7 +1,7 @@
 //
 // options.cpp
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
@@ -159,7 +159,7 @@ bool Options::SaveSettings(void) {
   if (f_open(&file, m_SettingsPath, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
     return false;
   }
-  f_puts("# BMAtariST settings, written by its menu (F10).\r\n"
+  f_puts("# BMNeXT settings, written by its menu (F10).\r\n"
          "# These win over the same options in cmdline.txt.\r\n", &file);
   for (int i = 0; i < m_nSettings; i++) {
     f_printf(&file, "%s=%s\r\n", m_SettingName[i], m_SettingValue[i]);

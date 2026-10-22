@@ -554,7 +554,7 @@ body.modal-open { overflow: hidden; }
 
 /* ---------- name ---------- */
 
-/* BMAtariST's name as GEM shows a title: black letters on white, with the
+/* BMNeXT's name as GEM shows a title: black letters on white, with the
    colour bar under it. */
 .sidebar-name, .welcome-text {
   font-family: var(--mono);

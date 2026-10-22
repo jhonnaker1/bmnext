@@ -47,7 +47,7 @@ void WebUiFsUpload(CSocket *socket, const char *query,
 
 // POST /api/fs/save?vol=SD&path=/settings.txt  <- the raw request body
 // replaces one of the editable config files (cmdline.txt, config.txt,
-// wpa_supplicant.conf, hatari.cfg, bmatarist.cfg): up to 256 KB of
+// wpa_supplicant.conf, previous.cfg, bmnext.cfg): up to 256 KB of
 // text, no NUL bytes. Written to "<name>.part", with the previous version
 // kept as "<name>.bak". Arguments are as for WebUiFsUpload. GET /api/fs/list
 // marks the editable entries with "edit":true.

@@ -17,7 +17,7 @@
 //
 // Modified for BMA800XL: always built, with the BMA800XL host name,
 // version and power and reset requests; BMC64's profiles are removed.
-// Changed for BMCoco and BMApple2, and for BMAtariST: the Atari ST machine and files.
+// Changed for BMCoco and BMApple2, and BMAtariST, and for BMNeXT: the NeXT machine and files.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,8 +63,8 @@ extern "C" int circle_get_network_ip_address(char *address,
 // Requests for the emulator's main loop (src/port/platform.c), which acts
 // on them between frames: a reboot or power off (after closing the disk
 // images so their last writes reach the card), and a cold start.
-extern "C" void bmatarist_request_power(int power_off);
-extern "C" void bmatarist_request_coldstart(void);
+extern "C" void bmnext_request_power(int power_off);
+extern "C" void bmnext_request_coldstart(void);
 
 #define WEBUI_LOG              "webui"
 #define WEBUI_PORT             80
@@ -77,7 +77,7 @@ extern "C" void bmatarist_request_coldstart(void);
 #define WEBUI_AUTH_FAIL_MS     500  // slow brute-forcing a wrong PIN
 
 // CNetSubSystem is created with this name in src/kernel.cpp.
-#define WEBUI_HOSTNAME         "bmatarist"
+#define WEBUI_HOSTNAME         "bmnext"
 
 namespace {
 
@@ -152,7 +152,7 @@ long ParseContentLength(const char *request) {
 }
 
 // TRUE if the raw request has a header whose name-and-colon matches
-// name_colon (lower case, e.g. "x-bmatarist-web:"). Stops at the blank line so
+// name_colon (lower case, e.g. "x-bmnext-web:"). Stops at the blank line so
 // body text can't pose as a header.
 boolean HasHeader(const char *request, const char *name_colon) {
   const char *p = request;
@@ -260,7 +260,7 @@ void HandleStatus(CSocket *socket) {
       "\"model\":\"%s\",\"ip\":\"%s\",\"net_status\":%d,\"net_text\":\"%s\","
       "\"uptime_secs\":%u,\"soc_temp_c\":%s,\"throttled\":%s,"
       "\"caps\":%s}",
-      WEBUI_HOSTNAME, BMATARIST_VERSION, BMATARIST_GIT, machine,
+      WEBUI_HOSTNAME, BMNEXT_VERSION, BMNEXT_GIT, machine,
       model != 0 ? model : "",
       have_ip ? ip : "", net_status, NetStatusText(net_status), uptime,
       soc_temp, throttled, caps);
@@ -377,7 +377,7 @@ void Send401(CSocket *socket) {
   int n = snprintf(
       header, sizeof(header),
       "HTTP/1.1 401 Unauthorized\r\n"
-      "WWW-Authenticate: Basic realm=\"BMAtariST Web UI - any username, PIN as "
+      "WWW-Authenticate: Basic realm=\"BMNeXT Web UI - any username, PIN as "
       "password\", charset=\"UTF-8\"\r\n"
       "Content-Type: text/plain; charset=utf-8\r\n"
       "Content-Length: %u\r\n"
@@ -476,8 +476,8 @@ boolean HandleConnection(CSocket *socket) {
     // or no-cors fetch cannot send (it would need a CORS preflight, which
     // this server never grants). Stops another site's page from using the
     // browser's cached PIN to change them.
-    if (!HasHeader(request, "x-bmatarist-web:")) {
-      SendText(socket, 403, "Forbidden", "missing X-BMAtariST-Web header\n");
+    if (!HasHeader(request, "x-bmnext-web:")) {
+      SendText(socket, 403, "Forbidden", "missing X-BMNeXT-Web header\n");
       return FALSE;
     }
     WebUiFsSave(socket, query, body, body_prefetched, content_length);
@@ -489,8 +489,8 @@ boolean HandleConnection(CSocket *socket) {
     // gets the same cross-site protection as /api/fs/save above.
     char recursive[4];
     if (webhttp::QueryParam(query, "recursive", recursive, sizeof(recursive)) &&
-        !HasHeader(request, "x-bmatarist-web:")) {
-      SendText(socket, 403, "Forbidden", "missing X-BMAtariST-Web header\n");
+        !HasHeader(request, "x-bmnext-web:")) {
+      SendText(socket, 403, "Forbidden", "missing X-BMNeXT-Web header\n");
       return FALSE;
     }
     WebUiFsDelete(socket, query);
@@ -500,8 +500,8 @@ boolean HandleConnection(CSocket *socket) {
   if (is_post && (strcmp(target, "/api/fs/mkdir") == 0 ||
                   strcmp(target, "/api/fs/rename") == 0)) {
     // Same cross-site protection as /api/fs/save above.
-    if (!HasHeader(request, "x-bmatarist-web:")) {
-      SendText(socket, 403, "Forbidden", "missing X-BMAtariST-Web header\n");
+    if (!HasHeader(request, "x-bmnext-web:")) {
+      SendText(socket, 403, "Forbidden", "missing X-BMNeXT-Web header\n");
       return FALSE;
     }
     if (strcmp(target, "/api/fs/mkdir") == 0) {
@@ -531,8 +531,8 @@ boolean HandleConnection(CSocket *socket) {
                   strcmp(target, "/api/shutdown") == 0)) {
     // Same cross-site protection as /api/fs/save: another site must not be
     // able to restart or power off the machine.
-    if (!HasHeader(request, "x-bmatarist-web:")) {
-      SendText(socket, 403, "Forbidden", "missing X-BMAtariST-Web header\n");
+    if (!HasHeader(request, "x-bmnext-web:")) {
+      SendText(socket, 403, "Forbidden", "missing X-BMNeXT-Web header\n");
       return FALSE;
     }
     int power_off = strcmp(target, "/api/shutdown") == 0;
@@ -544,13 +544,13 @@ boolean HandleConnection(CSocket *socket) {
     CScheduler::Get()->MsSleep(250);  // give the socket time to flush
     // Queued for the emulator main loop, which writes out the disk images
     // and then restarts or halts.
-    bmatarist_request_power(power_off);
+    bmnext_request_power(power_off);
     return FALSE;
   }
 
   if (is_post && strcmp(target, "/api/reset") == 0) {
     // Queued for the emulator main loop; BMC64 itself keeps running.
-    bmatarist_request_coldstart();
+    bmnext_request_coldstart();
     const char *ok = "{\"ok\":true}";
     SendResponse(socket, 202, "Accepted", "application/json", ok,
                  (unsigned) strlen(ok));

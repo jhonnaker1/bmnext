@@ -1,0 +1,52 @@
+Previous
+========
+
+BMNeXT's emulation is Previous (https://previous.alternative-system.com/),
+the NeXT emulator by Andreas Grabher, Simon Schubiger and Gilles Fétis,
+based on the Atari ST emulator Hatari, built into the kernels with
+BMNeXT's front end (src/port/). Its notice, as in its readme.previous.txt:
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or (at
+    your option) any later version.
+
+    This program is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+    General Public License for more details.
+
+The GNU General Public License version 2 is GPL-2.0.txt in this folder;
+BMNeXT as a whole is under version 3 (LICENSE.txt in the root of the
+card). Previous's 68030 and 68040 CPU core comes from WinUAE (Toni Wilen
+and others) and UAE (Bernd Schmidt and others); its DSP56001 emulation from
+ARAnyM and Hatari (GPL version 2 or later). BMNeXT's menu uses the
+character set from Previous's font (src/gui-sdl/font10x16.h).
+
+Previous's NeXTdimension emulation, whose i860 emulator is under the MAME
+licence, is not in BMNeXT, nor are NeXT's ROMs.
+
+Previous's floating point emulation (src/softfloat/, from QEMU and
+Hatari) is derived from
+the SoftFloat package, with this notice:
+
+    Written by John R. Hauser.  This work was made possible in part by the
+    International Computer Science Institute, located at Suite 600, 1947 Center
+    Street, Berkeley, California 94704.  Funding was partially provided by the
+    National Science Foundation under grant MIP-9311980.  The original version
+    of this code was written as part of a project to build a fixed-point vector
+    processor in collaboration with the University of California at Berkeley,
+    overseen by Profs. Nelson Morgan and John Wawrzynek.  More information
+    is available through the Web page `http://HTTP.CS.Berkeley.EDU/~jhauser/
+    arithmetic/SoftFloat.html'.
+
+    THIS SOFTWARE IS DISTRIBUTED AS IS, FOR FREE.  Although reasonable effort
+    has been made to avoid it, THIS SOFTWARE MAY CONTAIN FAULTS THAT WILL AT
+    TIMES RESULT IN INCORRECT BEHAVIOR.  USE OF THIS SOFTWARE IS RESTRICTED TO
+    PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
+    AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
+
+    Derivative works are acceptable, even for commercial purposes, so long as
+    (1) they include prominent notice that the work is derivative, and (2) they
+    include prominent notice akin to these four paragraphs for those parts of
+    this code that are retained.

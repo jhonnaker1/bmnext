@@ -4,19 +4,19 @@
 // The Pi 5's direct display driver's mode setting: re-times the HDMI port
 // in use to another mode of the same size, through its pixel valve (0 or
 // 1), the HDMI encoder and its PHY, with the HVS channel restarted to
-// match. Only modes BMAtariST knows (src/kms/common/modes.h) are switched
+// match. Only modes BMNeXT knows (src/kms/common/modes.h) are switched
 // between, starting from a mode it recognises; if a step doesn't complete,
 // the old mode is put back.
 //
 // The steps and their order follow the behaviour of the Linux vc4 display
 // driver.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_KMS_PI5_MODESET_H_
-#define BMATARIST_KMS_PI5_MODESET_H_
+#ifndef BMNEXT_KMS_PI5_MODESET_H_
+#define BMNEXT_KMS_PI5_MODESET_H_
 
 #include "hvs.h"
 #include "../common/modes.h"
@@ -33,7 +33,7 @@ public:
   // before anything else.
   void SetPort(unsigned port);
 
-  // The mode the port is running, if it is one BMAtariST knows (with its
+  // The mode the port is running, if it is one BMNeXT knows (with its
   // nominal pixel clock, or the last one set here).
   bool Current(Timing *timing);
 

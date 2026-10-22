@@ -1,12 +1,12 @@
 /*
- * osd.c - BMAtariST's on-screen display: menus, file browser, text entry.
+ * osd.c - BMNeXT's on-screen display: menus, file browser, text entry.
  *
- * From BMCoco and BMApple2. Text is drawn with Hatari's own settings
- * dialog font (gui-sdl/font10x16.h, the Atari ST's character set), each
- * character 10x16 pixels in a 640x460 area: 64 columns by 28 rows, black on
- * white like GEM's dialogs.
+ * From BMCoco, BMApple2 and BMAtariST. Text is drawn with Previous's own
+ * settings dialog font (gui-sdl/font10x16.h, Hatari's, with the Atari ST's
+ * character set), each character 10x16 pixels in a 640x460 area: 64
+ * columns by 28 rows, black on white.
  *
- * This file is part of BMAtariST, a bare metal Atari ST emulator for
+ * This file is part of BMNeXT, a bare metal NeXT emulator for
  * the Raspberry Pi. See LICENSE for licensing details.
  */
 
@@ -19,7 +19,7 @@
 #include <sys/stat.h>
 
 #include "../host.h"
-#include "bmatarist.h"
+#include "bmnext.h"
 #include "osd.h"
 
 #define OSD_W 640
@@ -27,7 +27,7 @@
 #define CELL_W 10
 #define CELL_H 16
 
-/* Hatari's 10x16 font: an X bitmap, 16 characters across and 16 down,
+/* Previous's 10x16 font: an X bitmap, 16 characters across and 16 down,
    the leftmost pixel of each byte in bit 0. */
 typedef uint8_t Uint8;
 #include "gui-sdl/font10x16.h"
@@ -53,10 +53,10 @@ static void flush_input(void);
 
 static uint16_t *osd_fb(int *pitch)
 {
-	return bmatarist_framebuffer(pitch);
+	return bmnext_framebuffer(pitch);
 }
 
-/* A glyph from Hatari's font. */
+/* A glyph from Previous's font. */
 static void draw_char_at(uint16_t *fb, int pitch, int x, int y, unsigned char c,
                          uint16_t fg, uint16_t bg)
 {
@@ -143,7 +143,7 @@ void osd_open(void)
 	closing = FALSE;
 	flush_input();
 	clear_screen();
-	bmatarist_osd_view(TRUE);
+	bmnext_osd_view(TRUE);
 }
 
 void osd_close(void)
@@ -154,7 +154,7 @@ void osd_close(void)
 	closing = FALSE;
 	flush_input();
 	clear_screen();
-	bmatarist_osd_view(FALSE);
+	bmnext_osd_view(FALSE);
 }
 
 int osd_is_open(void)
@@ -316,7 +316,7 @@ static int poll_input(int pads)
 	int usage, pressed, key;
 	double now = host_time();
 
-	if (bmatarist_pending_requests()) {
+	if (bmnext_pending_requests()) {
 		closing = TRUE;
 		return OSD_KEY_MENU;
 	}
@@ -328,7 +328,7 @@ static int poll_input(int pads)
 		}
 		if (usage == USAGE_POWER) {
 			/* Shut Down, as during play (platform.c). */
-			bmatarist_request_power(1);
+			bmnext_request_power(1);
 			closing = TRUE;
 			return OSD_KEY_MENU;
 		}
@@ -375,7 +375,7 @@ int osd_poll_key(int pads)
 	key = poll_input(pads);
 	if (key == OSD_KEY_NONE) {
 		/* Waits for the next display refresh. */
-		bmatarist_idle();
+		bmnext_idle();
 		host_video_present(TRUE);
 		if (!pads)
 			flush_pads();
@@ -617,7 +617,7 @@ void osd_message(const char *text, int wait)
 	int was_open = is_open;
 	if (!was_open)
 		osd_open();
-	draw_frame("BMAtariST", wait ? "Press any key" : NULL);
+	draw_frame("BMNeXT", wait ? "Press any key" : NULL);
 	draw_wrapped(5, OSD_ROWS - 7, text, C_GREEN);
 	if (wait) {
 		osd_read_key();

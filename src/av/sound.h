@@ -26,12 +26,12 @@
 //    the rule that only Write(), GetQueueFramesAvail() and IsActive() may
 //    be called on other cores than core 0.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_AV_SOUND_H_
-#define BMATARIST_AV_SOUND_H_
+#ifndef BMNEXT_AV_SOUND_H_
+#define BMNEXT_AV_SOUND_H_
 
 #include <circle/interrupt.h>
 #include <circle/sound/soundbasedevice.h>

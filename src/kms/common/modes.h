@@ -13,12 +13,12 @@
 //
 // Pure computation, so tools/pi4kms can test it on a PC.
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 
-#ifndef BMATARIST_KMS_COMMON_MODES_H_
-#define BMATARIST_KMS_COMMON_MODES_H_
+#ifndef BMNEXT_KMS_COMMON_MODES_H_
+#define BMNEXT_KMS_COMMON_MODES_H_
 
 #include <stdint.h>
 
@@ -36,7 +36,7 @@ struct Timing {
   double Refresh(void) const { return (double)pixel_hz / HTotal() / VTotal(); }
 };
 
-// The CTA-861 timing for VIC, or 0 if it isn't one BMAtariST knows.
+// The CTA-861 timing for VIC, or 0 if it isn't one BMNeXT knows.
 const Timing *CtaMode(unsigned vic);
 
 // The known mode with these active sizes and totals (as read back from the

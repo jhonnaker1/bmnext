@@ -1,51 +1,68 @@
 /*
- * config.h - Hatari's build options for BMAtariST.
+ * config.h - Previous's build options for BMNeXT.
  *
- * Hatari's CMake build normally writes this file (from cmake/config-cmake.h).
- * BMAtariST builds Hatari with its own makefile (src/port/hatari.mk), so the
- * options are set here by hand: every machine Hatari has (the DSP for the
- * Falcon included), no host libraries but zlib (third_party/zlib), and the
- * user interface, video, sound and joystick modules from src/port/.
+ * Previous's CMake build normally writes this file (from
+ * cmake/config-cmake.h). BMNeXT builds Previous with its own makefile
+ * (src/port/previous.mk), so the options are set here by hand: no host
+ * libraries but zlib (third_party/zlib), no libpng, libpcap or readline.
  *
  * The same options are used on the Pi (circle-newlib) and in the PC test
  * harness (tools/hostsim), so that both build the same code. Only what
- * newlib has is turned on; Hatari has its own fallbacks for the rest
- * (scandir.c, for one).
+ * newlib has is turned on.
  *
- * This file is part of BMAtariST, a bare metal Atari ST emulator for the
+ * ENABLE_RENDERING_THREAD is set: in that mode Previous runs its CPU on the
+ * main thread and calls the front end from it 200 times a second
+ * (Main_EventHandler(), main_next.c), and the screen is repainted by the
+ * front end rather than by a thread of Previous's (screen.c). Circle runs
+ * the emulator on one core with no threads.
+ *
+ * This file is part of BMNeXT, a bare metal NeXT emulator for the
  * Raspberry Pi. See LICENSE for licensing details.
  */
 
-#ifndef BMATARIST_HATARI_CONFIG_H_
-#define BMATARIST_HATARI_CONFIG_H_
+#ifndef BMNEXT_PREVIOUS_CONFIG_H_
+#define BMNEXT_PREVIOUS_CONFIG_H_
 
-/* zlib (third_party/zlib): zipped and gzipped disk images. */
+/* zlib (third_party/zlib): gzipped disk images. */
 #define HAVE_LIBZ 1
 #define HAVE_ZLIB_H 1
 
-/* newlib's headers */
+/* newlib's headers and functions */
 #define HAVE_STRINGS_H 1
 #define HAVE_SYS_TIME_H 1
-#define HAVE_SYS_TIMES_H 1
 #define HAVE_GETTIMEOFDAY 1
 #define HAVE_SETENV 1
-#define HAVE_UTIME_H 1
+#define HAVE_STRDUP 1
+#define HAVE_FSEEKO 1
+#define HAVE_FTELLO 1
+#define HAVE_DIRENT_D_TYPE 1
 
-/* newlib has neither, nor the d_reclen Hatari's own scandir.c needs: on the
-   Pi they are BMAtariST's (posix_extra.c); the PC's C library has them. */
+/* The NeXT's memory is allocated 64K aligned (cpu/maccess.h): newlib has
+   aligned_alloc() but not posix_memalign(); the PC's C library has both. */
+#ifdef BMNEXT_HOST_LIBC
+#define HAVE_POSIX_MEMALIGN 1
+#else
+#define HAVE_ALIGNED_ALLOC 1
+#endif
+
+/* newlib has neither, nor the d_reclen Previous's own scandir.c needs: on
+   the Pi they are BMNeXT's (posix_extra.c); the PC's C library has them. */
 #define HAVE_SCANDIR 1
 #define HAVE_ALPHASORT 1
 
-/* Where Hatari would look for a system wide hatari.cfg. BMAtariST passes
-   its settings itself (src/port/platform.c). */
+/* Where Previous would look for a system wide previous.cfg. BMNeXT
+   passes its settings itself (src/port/main_next.c). */
 #define CONFDIR "/"
 #define BIN2DATADIR "."
 
-/* The Falcon's DSP. */
+/* The NeXT's DSP56001. */
 #define ENABLE_DSP_EMU 1
 
-/* Trace logs (--trace) cost a little speed on every chip access; BMAtariST
-   has no command line to turn them on. */
+/* The CPU runs on the main thread (see above). */
+#define ENABLE_RENDERING_THREAD 1
+
+/* Trace logs cost a little speed on every chip access; BMNeXT has no
+   command line to turn them on. */
 #undef ENABLE_TRACING
 
-#endif /* BMATARIST_HATARI_CONFIG_H_ */
+#endif /* BMNEXT_PREVIOUS_CONFIG_H_ */

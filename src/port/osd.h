@@ -1,17 +1,16 @@
 /*
- * osd.h - BMAtariST's on-screen display: menus, file browser, text entry.
+ * osd.h - BMNeXT's on-screen display: menus, file browser, text entry.
  *
- * Hatari's own settings dialog belongs to its SDL front end, so BMAtariST
- * draws its own menu (everything about the emulated ST, and BMAtariST's
- * settings), straight into the display's frame buffer, in the style of a
- * GEM dialog. While the display is open the emulation is paused.
+ * Previous's own settings dialog belongs to its SDL front end, so BMNeXT
+ * draws its own menu (everything about the emulated NeXT, and BMNeXT's
+ * settings), straight into the display's frame buffer. While the display is open the emulation is paused.
  *
- * This file is part of BMAtariST, a bare metal Atari ST emulator for
+ * This file is part of BMNeXT, a bare metal NeXT emulator for
  * the Raspberry Pi. See LICENSE for licensing details.
  */
 
-#ifndef BMATARIST_OSD_H_
-#define BMATARIST_OSD_H_
+#ifndef BMNEXT_OSD_H_
+#define BMNEXT_OSD_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -106,4 +105,4 @@ int osd_draw_notification(uint16_t *fb, int pitch_px, int w, int h);
 void osd_draw_disk_status(uint16_t *fb, int pitch_px, int w, int h,
                           const char *text, int light, int error);
 
-#endif /* BMATARIST_OSD_H_ */
+#endif /* BMNEXT_OSD_H_ */

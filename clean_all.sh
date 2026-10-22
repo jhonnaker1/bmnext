@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Cleans everything: the kernel, the compiled Hatari library, the SD card
+# Cleans everything: the kernel, the compiled Previous library, the SD card
 # staging folder, and the third party builds inside circle-stdlib (which is
 # also reset to its pinned revision, undoing src/patches/).
 #
@@ -12,7 +12,7 @@
 
 if [ ! -f sdcard/config.txt ]
 then
-    echo "Must be run from the BMAtariST root directory." >&2
+    echo "Must be run from the BMNeXT root directory." >&2
     exit 1
 fi
 

@@ -8,7 +8,7 @@
 //
 //   tools/pi4kms/run_tests.sh
 //
-// This file is part of BMAtariST, a bare metal Atari ST emulator for
+// This file is part of BMNeXT, a bare metal NeXT emulator for
 // the Raspberry Pi. See LICENSE for licensing details.
 //
 

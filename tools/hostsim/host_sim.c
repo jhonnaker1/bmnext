@@ -1,10 +1,10 @@
 /*
- * host_sim.c - runs the BMAtariST emulator port on a PC for testing.
+ * host_sim.c - runs the BMNeXT emulator port on a PC for testing.
  *
  * Implements src/host.h with a simulated display, sound output and input,
  * so KEGS and the port in src/port/ can be tested without a Raspberry Pi.
  * Time is virtual: each display refresh advances the clock by one frame of
- * a 60 Hz (or BMATARIST_REFRESH Hz) display, so tests run as fast as the PC
+ * a 60 Hz (or BMNEXT_REFRESH Hz) display, so tests run as fast as the PC
  * allows.
  *
  * A script on standard input drives the test, one command per line:
@@ -21,17 +21,17 @@
  *   <frame> run <path>             the web UI starts a file
  *   <frame> quit                   end the test
  *
- * BMATARIST_SIM_CONNECT_FRAMES=N makes background work (the modem's
+ * BMNEXT_SIM_CONNECT_FRAMES=N makes background work (the modem's
  * connecting) start N frames late, as a slow server would on the Pi.
  *
- * BMATARIST_SIM_RATE=48000 plays the sound at the Pi 4 and 5's HDMI rate
+ * BMNEXT_SIM_RATE=48000 plays the sound at the Pi 4 and 5's HDMI rate
  * (the latency asked for is taken at 44.1 kHz, as there).
  *
- * With BMATARIST_LIVE=PORT it runs in real time instead, with no script: the
+ * With BMNEXT_LIVE=PORT it runs in real time instead, with no script: the
  * screen, keyboard, gamepads and sound are in a web page at
  * http://127.0.0.1:PORT/ (live.c, live.html). tools/hostsim/live.sh starts it.
  *
- * This file is part of BMAtariST, a bare metal Atari ST emulator for
+ * This file is part of BMNeXT, a bare metal NeXT emulator for
  * the Raspberry Pi. See LICENSE for licensing details.
  */
 
@@ -49,8 +49,8 @@
 #include "live.h"
 
 /* From src/port/platform.c, called by the web UI on the Pi. */
-void bmatarist_request_power(int power_off);
-void bmatarist_request_coldstart(void);
+void bmnext_request_power(int power_off);
+void bmnext_request_coldstart(void);
 void emu_autostart_interrupt(const char *path);
 
 /* ---- Options ---------------------------------------------------------------- */
@@ -58,7 +58,7 @@ void emu_autostart_interrupt(const char *path);
 static const char *option(const char *name)
 {
 	static char buf[1024];
-	const char *cmdline = getenv("BMATARIST_CMDLINE");
+	const char *cmdline = getenv("BMNEXT_CMDLINE");
 	char *p, *save = NULL;
 	size_t n = strlen(name);
 	if (cmdline == NULL)
@@ -71,8 +71,8 @@ static const char *option(const char *name)
 	return NULL;
 }
 
-/* Settings changed by the menu, which win over BMATARIST_CMDLINE, as
-   bmatarist.cfg does on the Pi. Saved to ./bmatarist.cfg. */
+/* Settings changed by the menu, which win over BMNEXT_CMDLINE, as
+   bmnext.cfg does on the Pi. Saved to ./bmnext.cfg. */
 static char set_name[48][24], set_value[48][72];
 static int n_set;
 
@@ -93,7 +93,7 @@ int host_option_set(const char *name, const char *value)
 
 int host_options_save(void)
 {
-	FILE *f = fopen("bmatarist.cfg", "w");
+	FILE *f = fopen("bmnext.cfg", "w");
 	int i;
 	if (f == NULL)
 		return 0;
@@ -136,7 +136,7 @@ static double now = 0.0;
 static double refresh = 60.0;
 static double refresh_later = 0.0;  /* refresh rate after start up */
 static volatile long frame = 0;
-static long connect_frames = 0;  /* BMATARIST_SIM_CONNECT_FRAMES */
+static long connect_frames = 0;  /* BMNEXT_SIM_CONNECT_FRAMES */
 static long presents = 0;
 
 static void tick(void);
@@ -182,7 +182,7 @@ void host_yield(void)
 
 /* ---- Sound ---------------------------------------------------------------- */
 
-/* The output's rate: the VideoCore's 44100 Hz, or BMATARIST_SIM_RATE (48000
+/* The output's rate: the VideoCore's 44100 Hz, or BMNEXT_SIM_RATE (48000
    for the Pi 4 and 5's HDMI, which take the latency at 44100 Hz). */
 static unsigned hw_rate = 44100;
 #define HW_RATE hw_rate
@@ -217,7 +217,7 @@ static void sound_advance(void)
 
 unsigned host_sound_open(unsigned freq, int channels, unsigned latency_frames)
 {
-	const char *rate = getenv("BMATARIST_SIM_RATE");
+	const char *rate = getenv("BMNEXT_SIM_RATE");
 	(void) freq;
 	if (rate != NULL && atoi(rate) >= 8000)
 		hw_rate = (unsigned) atoi(rate);
@@ -511,9 +511,9 @@ static void run_script(void)
 			screenshot(line + n + 1);
 		} else if (strcmp(cmd, "webui") == 0) {
 			if (strstr(line + n, "reboot"))
-				bmatarist_request_power(0);
+				bmnext_request_power(0);
 			else if (strstr(line + n, "coldstart"))
-				bmatarist_request_coldstart();
+				bmnext_request_coldstart();
 		} else if (strcmp(cmd, "audio") == 0) {
 			fprintf(stderr, "[sim] frame %ld: audio written %ld frames in %ld writes, "
 			        "queue before write min %.0f, after write max %.0f, underruns %ld, "
@@ -590,7 +590,7 @@ void host_power_off(void)
 
 int host_network_address(char *address, unsigned size)
 {
-	const char *ip = getenv("BMATARIST_IP");
+	const char *ip = getenv("BMNEXT_IP");
 	if (ip == NULL || frame < 100)
 		return 0;
 	snprintf(address, size, "%s", ip);
@@ -690,7 +690,7 @@ void host_network_status(char *text, unsigned size)
 		snprintf(text, size, "Off");
 }
 
-/* BMATARIST_WIFI=1 pretends Wi-Fi is running, with a few networks around. */
+/* BMNEXT_WIFI=1 pretends Wi-Fi is running, with a few networks around. */
 int host_wifi_scan(struct host_wifi_ap *aps, int max)
 {
 	static const struct host_wifi_ap found[] = {
@@ -700,7 +700,7 @@ int host_wifi_scan(struct host_wifi_ap *aps, int max)
 		{"AppleNet", -60, 0},
 	};
 	int i, n = (int) (sizeof(found) / sizeof(found[0]));
-	if (getenv("BMATARIST_WIFI") == NULL)
+	if (getenv("BMNEXT_WIFI") == NULL)
 		return -1;
 	for (i = 0; i < n && i < max; i++)
 		aps[i] = found[i];
@@ -749,7 +749,7 @@ int host_set_log_destination(int destination)
 	return 1;
 }
 
-extern void bmatarist_main(void);
+extern void bmnext_main(void);
 
 /* For live.c */
 void sim_push_key(int usage, int pressed)
@@ -776,21 +776,21 @@ const uint16_t *sim_screen(int *w, int *h, int *pitch)
 
 int main(void)
 {
-	const char *r = getenv("BMATARIST_LIVE");
+	const char *r = getenv("BMNEXT_LIVE");
 	if (r) {
 		live = 1;
 		if (!live_init(atoi(r)))
 			return 1;
 	}
-	r = getenv("BMATARIST_REFRESH");
+	r = getenv("BMNEXT_REFRESH");
 	if (r)
 		refresh = atof(r);
-	r = getenv("BMATARIST_SIM_CONNECT_FRAMES");
+	r = getenv("BMNEXT_SIM_CONNECT_FRAMES");
 	if (r)
 		connect_frames = atol(r);
-	r = getenv("BMATARIST_REFRESH_LATER");
+	r = getenv("BMNEXT_REFRESH_LATER");
 	if (r)
 		refresh_later = atof(r);
-	bmatarist_main();
+	bmnext_main();
 	return 0;
 }
