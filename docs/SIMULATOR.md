@@ -63,8 +63,9 @@ BMNEXT_ROMS=/path/to/your/roms tools/hostsim/run_tests.sh
 The first build takes a few minutes: Previous's CPU core is generated C.
 The tests start the NeXT Computer, the NeXTstation and the NeXTstation
 Turbo Color to their ROM monitors (there is no disk to boot from), type at
-the monitor, and check the menu, a CPU that halts, a card with no ROM, the
-power key and the web UI's requests.
+the monitor, and check the menu and the settings it saves (mouse speed, the
+boot device, making a blank disk), a CPU that halts, a card with no ROM,
+the power key and the web UI's requests.
 
 Each test runs in its own folder under `tools/hostsim/out/`, which stands
 in for the SD card, with its log (`log.txt`) and screenshots (`.ppm`).

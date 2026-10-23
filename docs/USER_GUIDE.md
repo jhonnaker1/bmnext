@@ -36,8 +36,9 @@ copy images of yours into the card's `roms` folder (see
 (ROM 3.x, told by a name with "3." in it, as `Rev_3.3_v74.BIN`). Another can
 be chosen in the menu: *Machine*, *ROM*.
 
-With no disk to start from, the NeXT stops at its ROM monitor, the `NeXT>`
-prompt (`help` there lists its commands).
+A new card's NeXT starts in its ROM monitor, the `NeXT>` prompt (`help`
+there lists its commands), until a hard disk is put in SCSI disk 0 (see
+Disks); then it starts from that disk.
 
 ## Disks
 
@@ -45,13 +46,24 @@ prompt (`help` there lists its commands).
 
 - **SCSI Disk 0 to 6**: each a hard disk, a CD-ROM or a floppy drive, with
   a disk image. NeXTSTEP and OPENSTEP are installed on a hard disk image
-  (a raw image of the whole disk); the NeXT starts from SCSI disk 0 unless
-  its ROM's settings say otherwise.
+  (a raw image of the whole disk). Inserting a hard disk in SCSI disk 0
+  also makes the NeXT start from it (*Machine*, *Boot*, *Start From*
+  chooses otherwise).
 - **Optical Drive 0, 1**: the NeXT Computer's magneto-optical drives, with
   optical disk images.
 - **Floppy Drive**: the 2.88 MB floppy drive of the 68040 machines.
 
 Changing a hard disk restarts the NeXT.
+
+**Blank disks**: *Create a Blank Hard Disk...* (in a SCSI disk's menu) and
+*Create a Blank Disk...* (the floppy drive's) make an empty disk image in
+the card's `disks` folder and insert it, for installing NeXTSTEP on (from
+a CD-ROM image in another SCSI disk) or for more space. The sizes are those
+of the NeXT's own drives, which Previous recognises: 105 MB to 2.8 GB hard
+disks (the two "early NeXTSTEP" ones for NeXTSTEP before 2.0), and 720 KB,
+1.44 MB and 2.88 MB floppies. NeXTSTEP's BuildDisk (or Disk.app) then
+labels and formats it. A big one takes a while to write to the SD card;
+the menu shows how far it is.
 
 ## The menu
 
@@ -61,9 +73,9 @@ and the NeXT stops while it's open. The arrow keys (or the D-pad) move,
 
 | Item          | What it has |
 |---------------|-------------|
-| Disks         | SCSI disks, optical drives and the floppy drive |
+| Disks         | SCSI disks, optical drives and the floppy drive; blank disks |
 | Restart       | Switching the NeXT off and on |
-| Machine       | The machine, its ROM, memory, variable speed, swapping Command and Alt |
+| Machine       | The machine, its ROM, memory, what it starts from (Boot), variable speed, swapping Command and Alt, mouse speed |
 | Video         | Screen size, CRT effect, smooth scaling, disk activity |
 | Sound         | Volume, HDMI or the headphone jack |
 | Network       | The Pi's Ethernet or Wi-Fi, the web UI |
@@ -95,7 +107,21 @@ keyboard doesn't have, as in Previous:
 as on a NeXT keyboard (which has none). F12 is BMNeXT's menu; the Pi's own
 power key (a Pi 400's Fn+F10) shuts the Pi down.
 
-A USB mouse is the NeXT's mouse, with its left and right buttons.
+A USB mouse is the NeXT's mouse, with its left and right buttons. Its
+movements are scaled, with some acceleration, as in Previous;
+*Machine*, *Mouse Speed* makes it slower or faster (`fLinScale` and
+`fExpScale` in `previous.cfg`'s `[Mouse]` section are the exact
+settings).
+
+## Boot
+
+*Machine*, *Boot* has Previous's boot options, which the NeXT keeps in its
+NVRAM: what it starts from (the ROM monitor, a SCSI disk, the network, an
+optical disk or the floppy), and its power-on tests (the memory test, the
+power-on test with its sound and SCSI parts, verbose output, extended
+diagnostics). A change restarts the NeXT. The ROM monitor has more: `p`
+sets the boot settings, `b` starts from a device, as `b sd(1,0,0)` for SCSI
+disk 1.
 
 ## Machines and speed
 
@@ -109,8 +135,11 @@ that can't keep up runs slow, clock and all. *Variable Speed* runs the
 NeXT's clock in real time instead while programs run, as Previous's own
 option does, so it keeps time whatever the Pi manages.
 
-Not emulated: the NeXT's Ethernet (it sees a network with no cable), the
-NeXTdimension board, sound input, the laser printer.
+Not emulated: the NeXT's Ethernet (it sees a network with no cable), sound
+input, the laser printer, and the NeXTdimension board (the NeXTcube's
+32-bit colour graphics board with its own Intel i860, planned for later).
+For colour, choose the NeXTstation Color or NeXTstation Turbo Color: 4096
+colours on the same display, which NeXTSTEP shows in colour as it is.
 
 ## Display
 
@@ -241,8 +270,14 @@ check Machine, ROM.
 
 **The NeXT stops at the "NeXT>" prompt**: that is its ROM monitor, where a
 NeXT with no disk to start from ends up. Insert a disk image with NeXTSTEP
-(Disks, SCSI Disk 0), then Restart; or type `b` and Enter at the prompt to
-boot from the default device.
+(Disks, SCSI Disk 0), which restarts it from that disk; or type `b` and
+Enter at the prompt to start from the boot device (Machine, Boot).
+
+**"boot sd(0,0,0)" and nothing more**: the NeXT is waiting for a SCSI disk
+that isn't there (a Turbo's ROM waits a long time for one to spin up).
+Insert one, or set Machine, Boot, Start From to the ROM Monitor.
+
+**The mouse pointer is too fast or too slow**: Machine, Mouse Speed.
 
 **No picture**: uncomment `hdmi_safe=1` in `config.txt`. If that works, your
 display doesn't accept 1080p at 60 Hz; try another `hdmi_mode`.

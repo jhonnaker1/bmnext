@@ -10,7 +10,8 @@ NeXT stops at its ROM monitor, the "NeXT>" prompt.
 
 NeXTSTEP: copy a hard disk image with NeXTSTEP (or OPENSTEP) installed to
 the disks folder, press F12, Disks, SCSI Disk 0, Insert a Disk Image, and
-choose it; Restart (in the menu) starts the NeXT from it.
+choose it: the NeXT starts again, from it. (Create a Blank Hard Disk there
+makes an empty one, for installing NeXTSTEP on.)
 
 Keys:
   F12               BMNeXT's menu       Windows           Command

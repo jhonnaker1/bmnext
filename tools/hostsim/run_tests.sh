@@ -145,6 +145,25 @@ run padmenu "" '1200 pad 0 0\n1210 pad 0 0x0100\n1214 pad 0 0\n1230 shot menu.pp
 cp "$OUT/menu/menu.ppm" "$OUT/padmenu/f12menu.ppm"
 same padmenu f12menu menu
 
+echo "The menu's settings"
+# Menu, Machine (two down), Mouse Speed (six down), the last: Fastest.
+run mouse "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 655)$(key $DOWN 660)$(key $DOWN 665)$(key $DOWN 670)$(key $DOWN 675)$(key $DOWN 680)$(key $ENTER 690)$(key $DOWN 720)$(key $DOWN 725)$(key $DOWN 730)$(key $DOWN 735)$(key $ENTER 740)$(key $F12 760)800 quit\n"
+check_cfg mouse previous.cfg "^fLinScale = 2" "Machine > Mouse Speed saved in previous.cfg"
+# Menu, Machine, Boot (three down), Start From, SCSI Disk (one down).
+run boot_menu "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 630)$(key $DOWN 635)$(key $DOWN 640)$(key $ENTER 650)$(key $ENTER 680)$(key $DOWN 710)$(key $ENTER 720)$(key $F12 760)800 quit\n"
+check_cfg boot_menu previous.cfg "^nBootDevice = 1" "Machine > Boot > Start From saved in previous.cfg"
+check_log boot_menu "boot options reset" "the NeXT restarts for it"
+# Menu, Disks, SCSI Disk 0, Create a Blank Hard Disk (two down), 105 MB.
+run blank "" "$(key $F12 600)$(key $ENTER 610)$(key $ENTER 620)$(key $DOWN 650)$(key $DOWN 655)$(key $ENTER 660)$(key $ENTER 690)$(key $F12 910)1200 quit\n"
+if [ "$(wc -c < "$OUT/blank/disks/blank105.sd" 2>/dev/null)" -eq 110100480 ] 2>/dev/null &&
+   cmp -s -n 110100480 "$OUT/blank/disks/blank105.sd" /dev/zero; then
+    pass "blank: a 105 MB blank disk, all zeros, in disks/"
+else
+    fail "blank" "no 105 MB blank disk in out/blank/disks/"
+fi
+check_cfg blank previous.cfg "^szImageName0 = .*disks/blank105\.sd" "it is SCSI disk 0"
+check_log blank "SCSI disk 0: Insert .*blank105\.sd" "the NeXT has it"
+
 echo "A CPU that halts stops, and waits"
 run halt "" '600 quit\n' 'nMachineType = 2\nnCpuLevel = 3\n'
 check_log halt "CPU halted" "the CPU halted"

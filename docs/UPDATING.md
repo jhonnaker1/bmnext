@@ -9,7 +9,8 @@ trunk as plain files, at the revision in `third_party/previous/SVN_REVISION`.
 `tools/update_previous.sh` exports it (it needs `svn`) and removes what
 BMNeXT must not ship: NeXT's ROMs and a ROM disassembly (`src/*.BIN`,
 `src/*.ASM`), the NeXTdimension's i860 emulator (`src/dimension/i860*`,
-MAME licence) and blank disk images. It is otherwise used unmodified;
+whose header in Previous still has the old MAME licence) and the empty disk
+images (BMNeXT's menu makes blank disks itself). It is otherwise used unmodified;
 everything specific to BMNeXT is in `src/port/`:
 
 | File | What it has to do with Previous |
@@ -79,3 +80,22 @@ To update, move the submodule to a new circle-stdlib release, run
 patch no longer applies, update it from the matching BMC64 patch or by
 hand. `src/fbl.cpp` and `src/vchiqsoundbasedevice.cpp` use Circle's VC4
 addon and may need the same changes BMC64 makes when it updates Circle.
+
+## The NeXTdimension, later
+
+The NeXTdimension (`src/dimension/`) is left out for now. To add it:
+
+1. Settle the i860 emulator's licence. Previous's copy
+   (`src/dimension/i860*`) still says "MAME license, non-commercial"; MAME's
+   copy of the same code by the same author (`src/devices/cpu/i860/` in
+   MAME) has been BSD 3-clause since 2016. Asking Previous's maintainers (or
+   Jason Eckhardt) to confirm, and to update Previous's headers, is the
+   clean way; then stop `tools/update_previous.sh` removing those files.
+2. Build `src/dimension/` (C++) in place of `src/port/nextbus.c`'s stubs,
+   with `nd_sdl.cpp` replaced by a BMNeXT version, and the board's 32-bit
+   1120x832 picture copied by `src/port/screen.c`.
+3. Run the i860 first in Previous's no-thread mode (`bI860Thread = false`,
+   on the emulator's core), then on a core of its own (Circle's cores 2 and
+   3 are free), which needs real locks and atomics in `src/port/host_next.c`.
+4. The board needs its own ROM (`ND_step1_v43.BIN`), the user's, like the
+   NeXT's.

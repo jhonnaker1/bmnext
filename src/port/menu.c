@@ -100,9 +100,98 @@ static const char *const disk_exts[] = {"dsk", "img", "iso", "cdr", "raw", "hd",
 
 static const char *const scsi_types[] = {"None", "Hard Disk", "CD-ROM", "Floppy", NULL};
 
+/* ---- Blank disks ------------------------------------------------------ */
+
+/* The sizes of the empty disk images Previous comes with (its disks
+   folder): the NeXT's own drives, which Previous recognises by their size,
+   and all zeros, for NeXTSTEP's BuildDisk (or Disk.app) to label. The ones
+   marked "early" are those NeXTSTEP before 2.0 recognises. Optical disks
+   come formatted, so they aren't made here. */
+struct blank_size {
+	const char *name;
+	const char *file;
+	uint64_t bytes;
+};
+
+static const struct blank_size hard_disk_sizes[] = {
+	{"105 MB", "blank105.sd", 110100480ull},
+	{"250 MB", "blank250.sd", 262144000ull},
+	{"330 MB", "blank330.sd", 346030080ull},
+	{"340 MB (early NeXTSTEP)", "blank349x.sd", 366305280ull},
+	{"400 MB", "blank400.sd", 419430400ull},
+	{"660 MB", "blank660.sd", 692060160ull},
+	{"660 MB (early NeXTSTEP)", "blank660x.sd", 692649984ull},
+	{"1.4 GB", "blank1400.sd", 1468006400ull},
+	{"2.8 GB", "blank2800.sd", 2936012800ull},
+	{NULL, NULL, 0}
+};
+
+static const struct blank_size floppy_sizes[] = {
+	{"720 KB", "blank720.fd", 737280ull},
+	{"1.44 MB", "blank1440.fd", 1474560ull},
+	{"2.88 MB", "blank2880.fd", 2949120ull},
+	{NULL, NULL, 0}
+};
+
+/* Asks which size, and makes a blank disk image of it in the card's disks
+   folder (a new name if the file is there), with progress shown: a big
+   one takes a while to write to the card. Returns 1 with its path in
+   PATH. */
+static int create_blank(const struct blank_size *sizes, char *path, size_t size)
+{
+	static unsigned char zeros[256 * 1024];
+	const char *names[16];
+	char dir[FILENAME_MAX], name[64], text[96];
+	struct stat st;
+	uint64_t done = 0, total;
+	FILE *f;
+	int n, i, k;
+	for (n = 0; sizes[n].name != NULL && n < 15; n++)
+		names[n] = sizes[n].name;
+	names[n] = NULL;
+	i = osd_choose("Size of the Blank Disk", names, 0);
+	if (i < 0)
+		return 0;
+	total = sizes[i].bytes;
+	bmnext_card_path(dir, sizeof dir, "disks", "");
+	mkdir(dir, 0777);
+	snprintf(name, sizeof name, "%s", sizes[i].file);
+	bmnext_card_path(path, size, "disks", name);
+	for (k = 2; stat(path, &st) == 0 && k < 100; k++) {
+		const char *dot = strrchr(sizes[i].file, '.');
+		snprintf(name, sizeof name, "%.*s-%d%s", (int) (dot - sizes[i].file),
+		         sizes[i].file, k, dot);
+		bmnext_card_path(path, size, "disks", name);
+	}
+	f = fopen(path, "wb");
+	if (f == NULL) {
+		osd_message("Cannot create the disk image on the SD card.", TRUE);
+		return 0;
+	}
+	while (done < total) {
+		size_t chunk = total - done > sizeof zeros ? sizeof zeros : (size_t) (total - done);
+		if (fwrite(zeros, 1, chunk, f) != chunk)
+			break;
+		done += chunk;
+		if ((done & (32u * 1024 * 1024 - 1)) == 0 || done == total) {
+			snprintf(text, sizeof text, "Writing %s: %d%%", name,
+			         (int) (done * 100 / total));
+			osd_message(text, FALSE);
+			bmnext_idle();
+		}
+	}
+	if (fclose(f) != 0 || done < total) {
+		remove(path);
+		osd_message("The SD card is full, or the disk image could not be written.", TRUE);
+		return 0;
+	}
+	printf("BMNeXT: created %s (%s)\n", path, sizes[i].name);
+	return 1;
+}
+
 static void scsi_menu(int target)
 {
-	enum { T_TYPE, T_INSERT, T_EJECT, T_PROTECT };
+	enum { T_TYPE, T_INSERT, T_CREATE, T_EJECT, T_PROTECT };
 	int sel = 0;
 	for (;;) {
 		SCSIDISK *t = &ConfigureParams.SCSI.target[target];
@@ -113,6 +202,7 @@ static void scsi_menu(int target)
 			                                               : "(empty)", OSD_ITEM_LABEL, -1},
 			{"", NULL, OSD_ITEM_LABEL, -1},
 			{"Insert a Disk Image...", NULL, OSD_ITEM_SUBMENU, T_INSERT},
+			{"Create a Blank Hard Disk...", NULL, OSD_ITEM_SUBMENU, T_CREATE},
 			{"Eject", NULL, 0, T_EJECT},
 			{"Write Protected", NULL, check(t->bWriteProtected), T_PROTECT},
 		};
@@ -138,7 +228,22 @@ static void scsi_menu(int target)
 			if (t->nDeviceType == SD_NONE)
 				t->nDeviceType = SD_HARDDISK;
 			t->bDiskInserted = true;
+			/* Previous starts a new NeXT in its ROM monitor (with no disk
+			   a NeXT can wait minutes for one to spin up): a hard disk
+			   in SCSI disk 0 is started from. Machine, Boot changes it. */
+			if (target == 0 && t->nDeviceType == SD_HARDDISK
+			    && ConfigureParams.Boot.nBootDevice == BOOT_ROM)
+				ConfigureParams.Boot.nBootDevice = BOOT_SCSI;
 			bmnext_settings_apply(t->nDeviceType == SD_HARDDISK);
+			break;
+		case T_CREATE:
+			if (!create_blank(hard_disk_sizes, path, sizeof path))
+				break;
+			snprintf(t->szImageName, sizeof t->szImageName, "%s", path);
+			t->nDeviceType = SD_HARDDISK;
+			t->bDiskInserted = true;
+			t->bWriteProtected = false;
+			bmnext_settings_apply(TRUE);
 			break;
 		case T_EJECT:
 			t->bDiskInserted = false;
@@ -157,11 +262,12 @@ static void scsi_menu(int target)
 }
 
 /* An optical (MO) or floppy drive: CONNECTED, INSERTED, PROTECTED and
-   NAME are its settings. */
+   NAME are its settings; BLANKS the blank disks that can be made for it
+   (NULL: none). */
 static void drive_menu(const char *title, bool *connected, bool *inserted, bool *protected_,
-                       char *name, size_t name_size)
+                       char *name, size_t name_size, const struct blank_size *blanks)
 {
-	enum { R_CONNECTED, R_INSERT, R_EJECT, R_PROTECT };
+	enum { R_CONNECTED, R_INSERT, R_CREATE, R_EJECT, R_PROTECT };
 	int sel = 0;
 	for (;;) {
 		struct osd_item items[] = {
@@ -169,13 +275,30 @@ static void drive_menu(const char *title, bool *connected, bool *inserted, bool 
 			{"Disk", *inserted && name[0] ? base_name(name) : "(empty)", OSD_ITEM_LABEL, -1},
 			{"", NULL, OSD_ITEM_LABEL, -1},
 			{"Insert a Disk Image...", NULL, OSD_ITEM_SUBMENU, R_INSERT},
+			{"Create a Blank Disk...", NULL, OSD_ITEM_SUBMENU, R_CREATE},
 			{"Eject", NULL, 0, R_EJECT},
 			{"Write Protected", NULL, check(*protected_), R_PROTECT},
 		};
 		char path[FILENAME_MAX];
-		int chosen = osd_menu(title, items, sizeof items / sizeof items[0], &sel);
+		int n_items = sizeof items / sizeof items[0], chosen, k;
+		if (blanks == NULL) {
+			/* No blank disks of this kind (optical disks). */
+			for (k = 4; k < n_items - 1; k++)
+				items[k] = items[k + 1];
+			n_items--;
+		}
+		chosen = osd_menu(title, items, n_items, &sel);
 		bmnext_settings_begin();
 		switch (chosen) {
+		case R_CREATE:
+			if (!create_blank(blanks, path, sizeof path))
+				break;
+			snprintf(name, name_size, "%s", path);
+			*inserted = true;
+			*connected = true;
+			*protected_ = false;
+			bmnext_settings_apply(FALSE);
+			break;
 		case R_CONNECTED:
 			*connected = !*connected;
 			bmnext_settings_apply(TRUE);
@@ -251,11 +374,12 @@ static void disks_menu(void)
 			MODISK *d = &ConfigureParams.MO.drive[chosen - D_MO];
 			drive_menu(labels[ESP_MAX_DEVS + chosen - D_MO], &d->bDriveConnected,
 			           &d->bDiskInserted, &d->bWriteProtected, d->szImageName,
-			           sizeof d->szImageName);
+			           sizeof d->szImageName, NULL);
 		} else if (chosen == D_FLOPPY) {
 			FLPDISK *d = &ConfigureParams.Floppy.drive[0];
 			drive_menu("Floppy Drive", &d->bDriveConnected, &d->bDiskInserted,
-			           &d->bWriteProtected, d->szImageName, sizeof d->szImageName);
+			           &d->bWriteProtected, d->szImageName, sizeof d->szImageName,
+			           floppy_sizes);
 		} else {
 			return;
 		}
@@ -315,9 +439,83 @@ static int memory_mb(void)
 	return mb;
 }
 
+/* ---- Boot -------------------------------------------------------------- */
+
+/* What the NeXT starts from, and its power-on tests: Previous's own Boot
+   dialog's options (dlgBoot.c), which it puts in the NeXT's NVRAM; a
+   change restarts the NeXT (change.c). */
+static void boot_menu(void)
+{
+	enum { B_DEVICE, B_DRAM, B_POT, B_SOUND, B_SCSI, B_LOOP, B_VERBOSE, B_EXTENDED,
+	       B_VISIBLE };
+	static const char *const devices[] = {"ROM Monitor", "SCSI Disk", "Network",
+	                                      "Optical Disk", "Floppy", NULL};
+	int sel = 0;
+	for (;;) {
+		CNF_BOOT *b = &ConfigureParams.Boot;
+		struct osd_item items[] = {
+			{"Start From", devices[b->nBootDevice % 5], OSD_ITEM_SUBMENU, B_DEVICE},
+			{"", NULL, OSD_ITEM_LABEL, -1},
+			{"Memory Test", NULL, check(b->bEnableDRAMTest), B_DRAM},
+			{"Power-on Test", NULL, check(b->bEnablePot), B_POT},
+			{"  Sound Out Test", NULL, check(b->bEnableSoundTest), B_SOUND},
+			{"  SCSI Tests", NULL, check(b->bEnableSCSITest), B_SCSI},
+			{"  Loop Until a Key Is Pressed", NULL, check(b->bLoopPot), B_LOOP},
+			{"  Verbose", NULL, check(b->bVerbose), B_VERBOSE},
+			{"Extended Diagnostics", NULL, check(b->bExtendedPot), B_EXTENDED},
+			{"Show the Display During Tests", NULL, check(b->bVisible), B_VISIBLE},
+			{"", NULL, OSD_ITEM_LABEL, -1},
+			{"Changes here restart the NeXT. Its ROM monitor (NeXT>)", NULL, OSD_ITEM_LABEL, -1},
+			{"has more: 'p' sets them, 'b' starts from a device.", NULL, OSD_ITEM_LABEL, -1},
+		};
+		bool *flag = NULL;
+		int chosen = osd_menu("Boot", items, sizeof items / sizeof items[0], &sel), i;
+		bmnext_settings_begin();
+		switch (chosen) {
+		case B_DEVICE:
+			i = osd_choose("Start From", devices, b->nBootDevice % 5);
+			if (i >= 0) {
+				b->nBootDevice = (BOOT_DEVICE) i;
+				bmnext_settings_apply(FALSE);
+			}
+			break;
+		case B_DRAM: flag = &b->bEnableDRAMTest; break;
+		case B_POT: flag = &b->bEnablePot; break;
+		case B_SOUND: flag = &b->bEnableSoundTest; break;
+		case B_SCSI: flag = &b->bEnableSCSITest; break;
+		case B_LOOP: flag = &b->bLoopPot; break;
+		case B_VERBOSE: flag = &b->bVerbose; break;
+		case B_EXTENDED: flag = &b->bExtendedPot; break;
+		case B_VISIBLE: flag = &b->bVisible; break;
+		default:
+			return;
+		}
+		if (flag) {
+			*flag = !*flag;
+			bmnext_settings_apply(FALSE);
+		}
+		if (osd_closing())
+			return;
+	}
+}
+
+/* Previous's mouse speed (fLinScale, keymap.c). */
+static const char *const mouse_speeds[] = {"Slowest", "Slow", "Normal", "Fast", "Fastest", NULL};
+static const float mouse_scales[] = {0.5f, 0.75f, 1.0f, 1.5f, 2.0f};
+
+static int mouse_speed(void)
+{
+	int i, best = 2;
+	for (i = 0; i < 5; i++)
+		if (fabsf(mouse_scales[i] - ConfigureParams.Mouse.fLinScale)
+		    < fabsf(mouse_scales[best] - ConfigureParams.Mouse.fLinScale))
+			best = i;
+	return best;
+}
+
 static void machine_menu(void)
 {
-	enum { S_MACHINE, S_ROM, S_RAM, S_REALTIME, S_SWAP };
+	enum { S_MACHINE, S_ROM, S_RAM, S_BOOT, S_REALTIME, S_SWAP, S_MOUSE };
 	int sel = 0;
 	for (;;) {
 		char ram[16];
@@ -326,12 +524,14 @@ static void machine_menu(void)
 			{"ROM", rom_value(), OSD_ITEM_SUBMENU, S_ROM},
 			{"Memory", (snprintf(ram, sizeof ram, "%d MB", memory_mb()), ram),
 			 OSD_ITEM_SUBMENU, S_RAM},
+			{"Boot", NULL, OSD_ITEM_SUBMENU, S_BOOT},
 			{"Variable Speed (real time clock)", NULL,
 			 check(ConfigureParams.System.bRealtime), S_REALTIME},
 			{"Swap Command and Alt", NULL, check(ConfigureParams.Keyboard.bSwapCmdAlt),
 			 S_SWAP},
+			{"Mouse Speed", mouse_speeds[mouse_speed()], OSD_ITEM_SUBMENU, S_MOUSE},
 			{"", NULL, OSD_ITEM_LABEL, -1},
-			{"Changes here restart the NeXT. The 68040 machines", NULL, OSD_ITEM_LABEL, -1},
+			{"Machine, ROM and Memory restart the NeXT. The 68040s", NULL, OSD_ITEM_LABEL, -1},
 			{"need ROM 2.x, the Turbos ROM 3.x (in the roms folder).", NULL, OSD_ITEM_LABEL, -1},
 		};
 		const char *names[N_MACHINES + 1];
@@ -387,6 +587,16 @@ static void machine_menu(void)
 		case S_SWAP:
 			ConfigureParams.Keyboard.bSwapCmdAlt = !ConfigureParams.Keyboard.bSwapCmdAlt;
 			bmnext_settings_apply(FALSE);
+			break;
+		case S_BOOT:
+			boot_menu();
+			break;
+		case S_MOUSE:
+			i = osd_choose("Mouse Speed", mouse_speeds, mouse_speed());
+			if (i >= 0) {
+				ConfigureParams.Mouse.fLinScale = mouse_scales[i];
+				bmnext_settings_apply(FALSE);
+			}
 			break;
 		default:
 			return;

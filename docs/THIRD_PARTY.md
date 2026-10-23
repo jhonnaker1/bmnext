@@ -13,7 +13,7 @@ Previous's 68030 and 68040 CPU core comes from WinUAE and UAE; its DSP56001 emul
 Left out of `third_party/previous` (and so of BMNeXT):
 
 - NeXT's ROM images and a ROM disassembly, which Previous's trunk includes (`src/*.BIN`, `src/ROMV66-0001E-02588.ASM`): they are NeXT's (now Apple's) copyright. Users supply their own ROMs.
-- The NeXTdimension's Intel i860 emulator (`src/dimension/i860*`), by Jason Eckhardt, under the MAME licence (non-commercial use), which is not compatible with the GPL. The rest of `src/dimension/` is there but not built.
+- The NeXTdimension's Intel i860 emulator (`src/dimension/i860*`), by Jason Eckhardt. Previous's copy still carries the old MAME licence (non-commercial use), which is not compatible with the GPL. MAME's own copy of the same emulator has been under the BSD 3-clause licence (GPL compatible) since MAME's relicensing in 2016, so the NeXTdimension can come later, once that is settled (see [UPDATING.md](UPDATING.md)). The rest of `src/dimension/` is there but not built.
 - Blank disk images (`disks/`).
 
 Previous's SLiRP network code (`src/slirp/`, BSD licence) is in the tree but not built.

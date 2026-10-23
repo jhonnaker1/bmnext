@@ -33,14 +33,16 @@ run on a Raspberry Pi, and its speed there is not known.
   pixel on a 1080p display
 - USB keyboards (keys go to the NeXT by where they are) and mice
 - No shutdown needed: just switch it off
-- A menu (F12) for the disks, the machine, ROM, memory, video, sound and
-  network
+- A menu (F12) for the disks (blank ones too), the machine, ROM, memory,
+  what it starts from, the mouse's speed, video, sound and network
 - Optional Ethernet or Wi-Fi with BMC64's web UI: manage the SD card from a
   browser and start disk images
 
 Not emulated (yet): the NeXT's network (Previous's needs threads and host
-sockets), the NeXTdimension board (its i860 emulator is not under a GPL
-compatible licence), sound input.
+sockets), sound input, and the NeXTdimension board (the NeXTcube's 32-bit
+colour graphics board, with its own Intel i860; planned for later). For
+colour now, choose a NeXTstation Color or NeXTstation Turbo Color in the
+menu (F12, Machine, Machine): 4096 colours on the same 1120x832 display.
 
 ## ROMs and NeXTSTEP
 
@@ -64,8 +66,8 @@ core. See [docs/PI4.md](docs/PI4.md) and [docs/PI5.md](docs/PI5.md).
 3. Copy your ROMs into `roms`, and a NeXTSTEP disk image into `disks`.
 4. Boot the Pi with a USB keyboard and mouse connected. The NeXT tests
    itself and stops at its ROM monitor (`NeXT>`). Press **F12**, choose
-   *Disks*, *SCSI Disk 0*, *Insert a Disk Image...*, and choose yours;
-   *Restart* in the menu starts the NeXT from it.
+   *Disks*, *SCSI Disk 0*, *Insert a Disk Image...*, and choose yours:
+   the NeXT starts again, from it.
 
 ## Keys
 
@@ -121,7 +123,8 @@ tools/hostsim              Runs the emulator port on a PC for testing
 ```
 
 Previous is used unmodified, minus the files BMNeXT must not ship (NeXT's
-ROMs, and the i860 emulator): everything specific to BMNeXT is in `src/`.
+ROMs) or doesn't use yet (the NeXTdimension's i860 emulator): everything
+specific to BMNeXT is in `src/`.
 Previous's CPU core is generated when it is built, as in Previous's own
 build.
 

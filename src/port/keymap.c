@@ -253,13 +253,41 @@ void bmnext_release_keys(void)
 			bmnext_key(usage, 0);
 }
 
-/* The mouse moved (relative, in the display's pixels) or a button changed. */
+/* A USB mouse's counts to the NeXT's, as Previous's SDL front end scales
+   them (sdlevent.c): Previous's mouse settings (fLinScale, fExpScale, in
+   previous.cfg) times 0.75 for the NeXT's own mouse (the ADB mouse is 100
+   counts an inch, as taken), with acceleration: the faster the move, the
+   more it is scaled up (fExpScale below 1). What is lost rounding is kept
+   for the next move. */
+static void scale_motion(int *dx, int *dy)
+{
+	static float frac_x, frac_y;
+	float x = (float) *dx, y = (float) *dy;
+	float lin = ConfigureParams.Mouse.fLinScale * (adb() ? 1.0f : 0.75f);
+	float e = ConfigureParams.Mouse.fExpScale;
+	if (e != 1.0f) {
+		float sum = fabsf(x) + fabsf(y);
+		if (sum > 0.0f)
+			lin *= powf(sum, e) / sum;
+	}
+	x = x * lin + frac_x;
+	y = y * lin + frac_y;
+	*dx = (int) x;
+	*dy = (int) y;
+	frac_x = x - (float) *dx;
+	frac_y = y - (float) *dy;
+}
+
+/* The mouse moved (relative, in the USB mouse's counts) or a button
+   changed. */
 void bmnext_mouse(int dx, int dy, int buttons)
 {
 	static int last_buttons;
 	int changed = buttons ^ last_buttons;
 	int tablet = ConfigureParams.Tablet.nTabletType && bTabletEnabled;
 	last_buttons = buttons;
+	if (!tablet && (dx || dy))
+		scale_motion(&dx, &dy);
 	if (dx || dy) {
 		if (tablet)
 			tablet_pen_move(dx, dy, 0, 0);

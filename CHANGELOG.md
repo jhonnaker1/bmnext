@@ -19,6 +19,14 @@ and BMC64), with Hatari replaced by Previous (SVN trunk r1858, Previous
 - Sound at 44.1 kHz, resampled to the output's rate
 - A CPU that halts (the wrong ROM for the machine) stops and says so, and
   a NeXT that switches itself off waits for a key
+- Blank hard disks (105 MB to 2.8 GB, the NeXT's own drive sizes) and
+  floppies made from the menu
+- Boot options in the menu (Machine, Boot): what the NeXT starts from and
+  its power-on tests; a hard disk inserted in SCSI disk 0 is started from
+- The mouse scaled with acceleration, as in Previous, with a Mouse Speed
+  setting
+- No NeXTdimension yet (planned); the NeXTstation Color and Turbo Color
+  give colour
 - The PC simulator's tests boot each kind of NeXT to its ROM monitor, with
   the user's ROMs (BMNEXT_ROMS)
 

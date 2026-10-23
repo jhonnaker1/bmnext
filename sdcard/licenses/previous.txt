@@ -23,8 +23,8 @@ and others) and UAE (Bernd Schmidt and others); its DSP56001 emulation from
 ARAnyM and Hatari (GPL version 2 or later). BMNeXT's menu uses the
 character set from Previous's font (src/gui-sdl/font10x16.h).
 
-Previous's NeXTdimension emulation, whose i860 emulator is under the MAME
-licence, is not in BMNeXT, nor are NeXT's ROMs.
+Previous's NeXTdimension emulation, and its i860 emulator, are not in
+BMNeXT (yet), nor are NeXT's ROMs.
 
 Previous's floating point emulation (src/softfloat/, from QEMU and
 Hatari) is derived from

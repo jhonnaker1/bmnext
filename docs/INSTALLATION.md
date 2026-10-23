@@ -29,8 +29,8 @@
 The NeXT tests itself (its memory, the FPU, SCSI and the rest), which takes
 a few seconds, and then starts from its disk, or stops at the ROM monitor
 (`NeXT>`) when there is none. Press **F12** for the menu: *Disks*, *SCSI
-Disk 0*, *Insert a Disk Image...* puts a disk image in, and *Restart*
-starts the NeXT from it. *Machine* chooses which NeXT it is.
+Disk 0*, *Insert a Disk Image...* puts a disk image in, and the NeXT starts
+again from it. *Machine* chooses which NeXT it is.
 
 The display is set to 1080p at 60 Hz: the NeXT's 832 lines need 1080 to be shown pixel for pixel. If you get no picture, see
 [Troubleshooting](USER_GUIDE.md#troubleshooting) in the User Guide.

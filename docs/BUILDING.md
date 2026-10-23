@@ -98,8 +98,9 @@ and 5 builds.
 the PC, with a simulated display, sound and input in place of the
 Raspberry Pi. It runs scripted tests with your ROMs, starting the NeXT
 Computer, the NeXTstation and the NeXTstation Turbo Color to their ROM
-monitors: typing at the monitor, the menu, a CPU that halts, a card with no
-ROM, web UI requests and the power key.
+monitors: typing at the monitor, the menu and the settings it saves (mouse
+speed, boot device, a blank disk), a CPU that halts, a card with no ROM,
+web UI requests and the power key.
 
 ```
 BMNEXT_ROMS=/path/to/your/roms tools/hostsim/run_tests.sh
