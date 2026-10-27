@@ -27,6 +27,10 @@ and BMC64), with Hatari replaced by Previous (SVN trunk r1858, Previous
   setting
 - No NeXTdimension yet (planned); the NeXTstation Color and Turbo Color
   give colour
+- Keys reach the NeXT one at a time: its keyboard holds one event, so keys
+  pressed and let go close together (fast typing) were lost, or stayed down
+- The web UI and the live simulator's page in a NeXT style, NeXTSTEP's
+  greys, with "NeXT" spelt as it is
 - The PC simulator's tests boot each kind of NeXT to its ROM monitor, with
   the user's ROMs (BMNEXT_ROMS)
 

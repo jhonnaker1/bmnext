@@ -245,12 +245,16 @@ void bmnext_key(int usage, int pressed)
 		kms_keyup(next_modifiers(), usage_to_next[usage]);
 }
 
+/* Lets go of every key the NeXT holds (before the menu opens): keys still
+   waiting to be pressed are forgotten, and the releases wait their turn,
+   one at a time, as any other key (gui_event.c). */
 void bmnext_release_keys(void)
 {
 	int usage;
+	bmnext_drop_queued_keys();
 	for (usage = 0; usage < (int) sizeof key_down; usage++)
 		if (key_down[usage])
-			bmnext_key(usage, 0);
+			bmnext_queue_key(usage, 0);
 }
 
 /* A USB mouse's counts to the NeXT's, as Previous's SDL front end scales

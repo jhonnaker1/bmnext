@@ -31,6 +31,27 @@ int bmnext_menu_requested(void)
 	return r;
 }
 
+/* Keys waiting to go to the NeXT. Its keyboard (kms.c, or adb.c) holds one
+   event until the NeXT reads it, and the next one replaces it: two given
+   in the same 5 ms (a key let go just as the next is pressed, when typing
+   fast) would lose the first, and a key would stay down. So the NeXT gets
+   one each time (200 a second), and the rest wait here. */
+#define KEY_QUEUE 64
+
+static struct {
+	uint8_t usage, pressed;
+} key_queue[KEY_QUEUE];
+static unsigned key_head, key_tail;
+
+void bmnext_queue_key(int usage, int pressed)
+{
+	if (key_tail - key_head < KEY_QUEUE) {
+		key_queue[key_tail % KEY_QUEUE].usage = (uint8_t) usage;
+		key_queue[key_tail % KEY_QUEUE].pressed = pressed != 0;
+		key_tail++;
+	}
+}
+
 static void keyboard(void)
 {
 	int usage, pressed;
@@ -46,8 +67,19 @@ static void keyboard(void)
 				menu_requested = TRUE;
 			continue;
 		}
-		bmnext_key(usage, pressed);
+		bmnext_queue_key(usage, pressed);
 	}
+	if (key_head != key_tail) {
+		bmnext_key(key_queue[key_head % KEY_QUEUE].usage,
+		           key_queue[key_head % KEY_QUEUE].pressed);
+		key_head++;
+	}
+}
+
+/* Forgets the keys waiting (bmnext_release_keys()). */
+void bmnext_drop_queued_keys(void)
+{
+	key_head = key_tail;
 }
 
 static void mouse(void)

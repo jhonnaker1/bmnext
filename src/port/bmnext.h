@@ -132,7 +132,8 @@ void bmnext_screen_dirty_bottom(void);
 
 /* A key (USB HID usage) pressed or released on the NeXT's keyboard. */
 void bmnext_key(int usage, int pressed);
-/* Releases every key held on the NeXT's keyboard (before a menu opens). */
+/* Releases every key held on the NeXT's keyboard (before a menu opens),
+   through the queue (gui_event.c). */
 void bmnext_release_keys(void);
 /* The mouse moved (DX, DY) and its buttons (bit 0 left, 1 right). */
 void bmnext_mouse(int dx, int dy, int buttons);
@@ -141,6 +142,10 @@ void bmnext_mouse(int dx, int dy, int buttons);
 
 /* TRUE if the menu should open (F12, a gamepad's Home). */
 int bmnext_menu_requested(void);
+/* A key for the NeXT, given to it in its turn: one each time Previous asks
+   (200 a second), as its keyboard holds one event at a time. */
+void bmnext_queue_key(int usage, int pressed);
+void bmnext_drop_queued_keys(void);
 
 /* ---- statusbar.c --------------------------------------------------------- */
 

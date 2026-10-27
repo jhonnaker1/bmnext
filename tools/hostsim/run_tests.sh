@@ -136,6 +136,14 @@ monitor turbocolor a
 echo "Typing at the ROM monitor"
 run typing "" "1200 shot before.ppm\n1210 type help\n$(key $ENTER 1260)1500 shot after.ppm\n1501 quit\n"
 differ typing before after
+# The same keys, each pressed and let go in the same frame as the others
+# (fast typing, a key let go as the next is pressed): the NeXT's keyboard
+# holds one event at a time, so they must reach it one by one.
+FAST=""
+for u in 0x0b 0x08 0x0f 0x13 $ENTER; do FAST="${FAST}1210 key $u 1\n1210 key $u 0\n"; done
+run fasttype "" "${FAST}1500 shot after.ppm\n1501 quit\n"
+cp "$OUT/typing/after.ppm" "$OUT/fasttype/typed.ppm"
+same fasttype typed after
 
 echo "The menu"
 run menu "" "1200 shot before.ppm\n$(key $F12 1210)1230 shot menu.ppm\n$(key $ESC 1240)1260 shot after.ppm\n1261 quit\n"
