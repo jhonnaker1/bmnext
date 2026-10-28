@@ -158,6 +158,17 @@ static double real_time(void)
 	return t - start;
 }
 
+void host_video_times(double *tasks, double *log, double *picture)
+{
+	*tasks = *log = *picture = 0;
+}
+
+void host_cpu_status(unsigned *mhz, unsigned *celsius)
+{
+	*mhz = 0;
+	*celsius = 0;
+}
+
 double host_time(void)
 {
 	if (live)

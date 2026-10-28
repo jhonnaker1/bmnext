@@ -62,8 +62,10 @@ static void write_frames(const int16_t *samples, unsigned n)
 {
 	static int16_t scaled[1024 * 2];
 	int v = bmnext_volume();
+	double t = host_time();
 	if (v >= 100) {
 		host_sound_write(samples, n);
+		bmnext_prof[PROF_SOUND] += host_time() - t;
 		return;
 	}
 	while (n > 0) {
@@ -74,6 +76,7 @@ static void write_frames(const int16_t *samples, unsigned n)
 		samples += chunk * 2;
 		n -= chunk;
 	}
+	bmnext_prof[PROF_SOUND] += host_time() - t;
 }
 
 /* ---- Output ---------------------------------------------------------------- */

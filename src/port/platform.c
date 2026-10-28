@@ -439,12 +439,53 @@ static void show_frame(void)
 	host_video_present(FALSE);
 }
 
+static int speed_seconds;
+static double speed_since;
+double bmnext_prof[PROF_KINDS];
+
+/* Every 10 s, for the log: how fast the NeXT runs, the ARM's clock, and
+   what part of the time went to other things than the NeXT's CPU. */
+static void report_speed(double now)
+{
+	static const char *const names[PROF_KINDS] = {
+		"frames", "network", "sound", "files", "sleeping"
+	};
+	char text[260];
+	unsigned mhz, celsius;
+	double span = now - speed_since;
+	int i, n;
+	host_cpu_status(&mhz, &celsius);
+	n = snprintf(text, sizeof text, "BMNeXT: speed %d%%, ARM %u MHz %u C;",
+	             bmnext_speed_percent(), mhz, celsius);
+	for (i = 0; i < PROF_KINDS; i++) {
+		if (n < (int) sizeof text && span > 0)
+			n += snprintf(text + n, sizeof text - n, " %s %d%%", names[i],
+			              (int) (bmnext_prof[i] * 100.0 / span + 0.5));
+		bmnext_prof[i] = 0;
+	}
+	{
+		double tasks, log, picture;
+		host_video_times(&tasks, &log, &picture);
+		if (n < (int) sizeof text && span > 0)
+			snprintf(text + n, sizeof text - n,
+			         " (frames: tasks %d%% log %d%% picture %d%%)",
+			         (int) (tasks * 100.0 / span + 0.5), (int) (log * 100.0 / span + 0.5),
+			         (int) (picture * 100.0 / span + 0.5));
+	}
+	printf("%s\n", text);
+	speed_since = now;
+}
+
 void bmnext_tick(void)
 {
 	double now = host_time();
+	double t = now;
 	enet_next_poll();
+	bmnext_prof[PROF_NETWORK] += host_time() - t;
 	if (now >= next_frame) {
+		t = host_time();
 		show_frame();
+		bmnext_prof[PROF_FRAMES] += host_time() - t;
 		next_frame += 1.0 / refresh_rate;
 		if (now - next_frame > 0.25 || next_frame - now > 0.25)
 			next_frame = now + 1.0 / refresh_rate;
@@ -460,8 +501,15 @@ void bmnext_tick(void)
 	}
 	if (now - last_second >= 1.0) {
 		last_second = now;
+		t = host_time();
 		sync_files();
+		bmnext_prof[PROF_FILES] += host_time() - t;
 		show_network_address();
+		/* How fast the NeXT runs, for the log (the menu shows it too). */
+		if (++speed_seconds >= 10) {
+			speed_seconds = 0;
+			report_speed(now);
+		}
 	}
 	handle_requests();
 }
@@ -534,7 +582,7 @@ void bmnext_main(void)
 	setenv("HOME", bmnext_sd_root(), 1);
 	bmnext_card_path(previous_cfg, sizeof previous_cfg, "", "previous.cfg");
 
-	next_frame = last_second = host_time();
+	next_frame = last_second = speed_since = host_time();
 	bmnext_previous_run(previous_cfg, startup_settings, &why);
 	stopped(why);
 }

@@ -139,6 +139,10 @@ echo "The NeXTstation (68040, ROM 2.x) and NeXTstation Turbo Color (ROM 3.x)"
 run station "" '1800 shot a.ppm\n1801 quit\n' "$STATION"
 check_log station "CPU=68040, FPU=68040, MMU=68040" "a 68040"
 check_log station "Loading ROM from .*roms/.*2" "the 2.x ROM"
+# previous.cfg was there (its [System]): saving it goes through a
+# temporary file, which on the Pi is in memory (posix_extra.c).
+check_cfg station previous.cfg "^\\[Dimension\\]" "settings saved over an existing previous.cfg"
+check_cfg station previous.cfg "^szRom040FileName = .*roms/" "the ROM saved over an existing previous.cfg"
 monitor station a
 run turbocolor "" '1800 shot a.ppm\n1801 quit\n' "$TURBOCOLOR"
 check_log turbocolor "Loading ROM from .*roms/.*3" "the 3.x ROM"

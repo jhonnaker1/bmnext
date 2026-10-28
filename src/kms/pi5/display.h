@@ -65,7 +65,11 @@ public:
   // screen), PITCH pixels per line; 0 if there is no picture.
   uint32_t *BeginFrame(unsigned *pitch);
   // Shows it from the next frame on; with WAIT_VSYNC, waits until it is.
-  void EndFrame(bool wait_vsync);
+  // Only LINES lines from FIRST_LINE on were drawn into it (all of them
+  // by default): only those are written from the cache to memory.
+  void EndFrame(bool wait_vsync, unsigned first_line = 0, unsigned lines = ~0u);
+  // Which buffer BeginFrame() gives next (0 or 1); the other is on screen.
+  unsigned BackBuffer(void) const { return m_nBack; }
 
   // Switches the video mode to run at FPS frames a second, if it can (see
   // modeset.h), at 1920x1080 or 1280x720 if LINES is 1080 or 720 and the

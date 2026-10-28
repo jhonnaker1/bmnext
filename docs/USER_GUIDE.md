@@ -46,8 +46,9 @@ Disks); then it starts from that disk.
 
 - **SCSI Disk 0 to 6**: each a hard disk, a CD-ROM or a floppy drive, with
   a disk image. NeXTSTEP and OPENSTEP are installed on a hard disk image
-  (a raw image of the whole disk). Inserting a hard disk in SCSI disk 0
-  also makes the NeXT start from it (*Machine*, *Boot*, *Start From*
+  (a raw image of the whole disk), of at most 2 GB on the Pi (the C library
+  BMNeXT uses can't go further into a file). Inserting a hard disk in SCSI
+  disk 0 also makes the NeXT start from it (*Machine*, *Boot*, *Start From*
   chooses otherwise).
 - **Optical Drive 0, 1**: the NeXT Computer's magneto-optical drives, with
   optical disk images.
@@ -263,8 +264,10 @@ Previous's settings, `previous.cfg`, which the menu changes.
 BMNeXT logs what it is doing, which helps when something doesn't work:
 the version, the display and sound set up, the ROMs found, devices coming
 and going, network status, and Previous's own messages (the ROM loaded,
-disks inserted, anything it didn't like). Choose
-where it goes with `enable_logging` in `cmdline.txt`:
+disks inserted, anything it didn't like). Every 10 seconds it notes how
+fast the NeXT runs, the Pi's CPU clock and temperature, and what part of
+the emulator's time went to the picture, the network, sound and waiting.
+Choose where it goes with `enable_logging` in `cmdline.txt`:
 
 - **Off** (the default, also when `enable_logging` isn't set): no log.
 - **UART**: the serial port, GPIO14 TX and GPIO15 RX at 115200 baud

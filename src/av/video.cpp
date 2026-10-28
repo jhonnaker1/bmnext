@@ -78,9 +78,17 @@ Pi4Video::Pi4Video(void)
   for (unsigned i = 0; i < 4; i++) {
     m_pLine[i] = 0;
   }
+  for (unsigned i = 0; i < 2; i++) {
+    m_pKmsShadow[i] = 0;
+    m_bKmsShadowValid[i] = false;
+  }
+  m_nKmsShadowW = m_nKmsShadowH = 0;
 }
 
 Pi4Video::~Pi4Video(void) {
+  for (unsigned i = 0; i < 2; i++) {
+    delete[] m_pKmsShadow[i];
+  }
   delete m_pKms;
   delete m_pFrameBuffer;
   delete[] m_pSource;
@@ -523,6 +531,7 @@ bool Pi4Video::ResolutionChoice(void) const {
 
 void Pi4Video::Blank(void) {
   if (m_pKms != 0) {
+    m_bKmsShadowValid[0] = m_bKmsShadowValid[1] = false;
     m_pKms->Blank();
     return;
   }
@@ -552,6 +561,8 @@ void Pi4Video::SetViewKms(int x, int y, int w, int h, double aspect,
   m_nViewH = h;
   m_fKmsAspect = aspect;
   m_fKmsScale = scale;
+  // New buffers, or the picture somewhere else: drawn whole again.
+  m_bKmsShadowValid[0] = m_bKmsShadowValid[1] = false;
 
   const unsigned width = m_pKms->Width(), height = m_pKms->Height();
   unsigned dest_h;
@@ -607,7 +618,47 @@ void Pi4Video::SetViewKms(int x, int y, int w, int h, double aspect,
   ConfigureGpu();
 }
 
+uint16_t *Pi4Video::KmsShadow(unsigned buffer) {
+  const unsigned w = (unsigned)m_nViewW, h = (unsigned)m_nViewH;
+  if (m_nKmsShadowW != w || m_nKmsShadowH != h) {
+    for (unsigned i = 0; i < 2; i++) {
+      delete[] m_pKmsShadow[i];
+      m_pKmsShadow[i] = new uint16_t[(size_t)w * h];
+      m_bKmsShadowValid[i] = false;
+    }
+    if (m_pKmsShadow[0] == 0 || m_pKmsShadow[1] == 0) {
+      return 0;
+    }
+    m_nKmsShadowW = w;
+    m_nKmsShadowH = h;
+  }
+  return m_pKmsShadow[buffer & 1];
+}
+
+// True if BUFFER holds the view as it is now.
+bool Pi4Video::KmsShows(unsigned buffer) {
+  uint16_t *shadow = KmsShadow(buffer);
+  if (shadow == 0 || !m_bKmsShadowValid[buffer & 1]) {
+    return false;
+  }
+  const size_t bytes = (size_t)m_nViewW * sizeof *m_pSource;
+  for (int y = 0; y < m_nViewH; y++) {
+    const uint16_t *src = m_pSource + (size_t)(m_nViewY + y) * m_nSourceWidth + m_nViewX;
+    if (memcmp(src, shadow + (size_t)y * m_nViewW, bytes) != 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void Pi4Video::PresentKms(bool wait_vsync) {
+  // The sharp picture, when the one on the screen is the view as it is
+  // now: nothing to draw or show (a big picture, the NeXT's 1120x832, a
+  // million pixels, would otherwise be converted and written out sixty
+  // times a second). Waits for the vertical blank are still waited for.
+  if (!m_bCrt && !wait_vsync && KmsShows(m_pKms->BackBuffer() ^ 1)) {
+    return;
+  }
   unsigned pitch;
   uint32_t *buffer = m_pKms->BeginFrame(&pitch);
   if (buffer == 0) {
@@ -628,14 +679,39 @@ void Pi4Video::PresentKms(bool wait_vsync) {
     m_Share.Run(*this, 1, m_Scaler.PrepareCount(), m_Scaler.Height());
     m_pKmsTarget = 0;
   } else {
-    // The view in colour, as it is; the HVS scales it.
+    // The view in colour, as it is; the HVS scales it. Only the lines that
+    // changed since this buffer was last drawn.
+    const unsigned back = m_pKms->BackBuffer();
+    uint16_t *shadow = KmsShadow(back);
+    const bool known = shadow != 0 && m_bKmsShadowValid[back & 1];
+    const size_t bytes = (size_t)m_nViewW * sizeof *m_pSource;
+    int first = m_nViewH, last = -1;
     for (int y = 0; y < m_nViewH; y++) {
       const uint16_t *src = m_pSource + (size_t)(m_nViewY + y) * m_nSourceWidth + m_nViewX;
+      if (shadow != 0) {
+        uint16_t *seen = shadow + (size_t)y * m_nViewW;
+        if (known && memcmp(src, seen, bytes) == 0) {
+          continue;
+        }
+        memcpy(seen, src, bytes);
+      }
       uint32_t *dst = buffer + (size_t)y * pitch;
       for (int x = 0; x < m_nViewW; x++) {
         dst[x] = Pi4Rgb565ToArgb(src[x]);
       }
+      if (first > y) {
+        first = y;
+      }
+      last = y;
     }
+    if (shadow != 0) {
+      m_bKmsShadowValid[back & 1] = true;
+    }
+    // Only the lines drawn go from the cache to memory (none: the other
+    // buffer is just shown again).
+    m_pKms->EndFrame(wait_vsync, last < 0 ? 0 : (unsigned)first,
+                     last < 0 ? 0 : (unsigned)(last - first + 1));
+    return;
   }
   m_pKms->EndFrame(wait_vsync);
 }

@@ -1,0 +1,13 @@
+diff --git a/addon/fatfs/ffconf.h b/addon/fatfs/ffconf.h
+index 9011a9a8..0c0977f3 100644
+--- a/addon/fatfs/ffconf.h
++++ b/addon/fatfs/ffconf.h
+@@ -34,7 +34,7 @@
+ /* This option switches f_mkfs(). (0:Disable or 1:Enable) */
+ 
+ 
+-#define FF_USE_FASTSEEK	0
++#define FF_USE_FASTSEEK	1
+ /* This option switches fast seek feature. (0:Disable or 1:Enable) */
+ 
+ 

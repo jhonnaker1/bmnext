@@ -38,8 +38,32 @@ and BMC64), with Hatari replaced by Previous (SVN trunk r1858, Previous
 - The PC simulator's tests boot each kind of NeXT to its ROM monitor, with
   the user's ROMs (BMNEXT_ROMS)
 
-Tested in the PC simulator only, where NeXTSTEP 3.3 starts to its login
-window; not yet on a Raspberry Pi.
+- First tests on a Raspberry Pi 5: OPENSTEP 4.2 starts to its login
+  window on a NeXTstation Turbo Color, at the real machine's speed or
+  more (Variable Speed), with the web UI and the network working. Fixed
+  on the way:
+  - A black screen at start: Previous asks for its memory 64K aligned,
+    which Circle's memalign() can't do (it asserts, and the panic stops
+    every core before anything is shown); plain malloc() on the Pi now. A
+    panic on any core now writes the log to the card before it stops
+  - "Error saving config file", and settings lost: Previous saves
+    previous.cfg through tmpfile(), which on the Pi wanted a /tmp the card
+    hasn't (and deletes the file while it is open, which FatFs doesn't
+    stand); its temporary files are in memory now
+  - Very slow (5 to 10 minutes to start OPENSTEP): the whole 1120x832
+    picture was converted and written out sixty times a second, most of
+    the emulator's time; now only the lines that changed, and nothing when
+    the picture is the same (the Pi 4 and 5's display driver)
+  - The Pi 5 is asked for its full clock (2.4 GHz), as the Pi 4 is
+  - FatFs's fast seek for big files (disk images): seeking back in a file
+    no longer reads its cluster chain from the start (patches to Circle
+    and circle-newlib, see src/patches/README.md)
+  - The log notes every 10 s how fast the NeXT runs, the CPU's clock and
+    temperature, and where the emulator's time went
+- Disk images are at most 2 GB on the Pi (circle-newlib's lseek())
+
+Tested in the PC simulator, where NeXTSTEP 3.3 starts to its login window,
+and on a Raspberry Pi 5; not yet on a Pi 4.
 
 ## Earlier: BMAtariST
 

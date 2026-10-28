@@ -96,6 +96,11 @@ void bmnext_stop(const char *why);
 /* How fast the emulation runs, in percent of the real machine's speed. */
 int bmnext_speed_percent(void);
 
+/* Where the emulator's core spends its time besides the NeXT's CPU, for
+   the log (platform.c): seconds, added up since the last report. */
+enum { PROF_FRAMES, PROF_NETWORK, PROF_SOUND, PROF_FILES, PROF_SLEEP, PROF_KINDS };
+extern double bmnext_prof[PROF_KINDS];
+
 /* ---- enet_next.c (or nonet.c) --------------------------------------- */
 
 /* The NeXT's network: SLiRP's connections and timers, 200 times a second

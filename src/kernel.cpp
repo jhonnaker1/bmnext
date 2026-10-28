@@ -85,6 +85,8 @@ void CEmulatorCore::Run(unsigned nCore) {
     while (!m_bLaunch) {
       DataMemBarrier();
     }
+    // From here core 0's watchdog reports where core 1 stopped.
+    Core1Beat("starting the emulator");
     bmnext_main();
   }
 #if RASPPI >= 4
@@ -127,9 +129,7 @@ CKernel::CKernel(void)
       mSerial(0, FALSE, 0),
 #endif
       mLog(&mSerial), mTimer(&mInterrupt), mLogger(mKernelOptions.GetLogLevel(), &mTimer),
-#if RASPPI <= 4
       mCPUThrottle(CPUSpeedMaximum),
-#endif
       mGPIOManager(&mInterrupt),
 #if RASPPI <= 3
       mVCHIQ(CMemorySystem::Get(), &mInterrupt),
@@ -189,12 +189,10 @@ bool CKernel::Initialize(void) {
   if (!mTimer.Initialize()) {
     return false;
   }
-#if RASPPI <= 4
   mLogger.Write(FromKernel, LogNotice, "CPU clock %u MHz (%u to %u MHz)",
                 mCPUThrottle.GetClockRate() / 1000000,
                 mCPUThrottle.GetMinClockRate() / 1000000,
                 mCPUThrottle.GetMaxClockRate() / 1000000);
-#endif
   if (!mGPIOManager.Initialize()) {
     return false;
   }
@@ -811,11 +809,16 @@ int CKernel::GpioJoystick(int port) {
 #if RASPPI >= 4
 
 int CKernel::VideoInit(int width, int height, uint16_t **pixels, int *pitch) {
-  return mVideo.Allocate(width, height, pixels, pitch);
+  Core1Beat("setting up the picture");
+  int ret = mVideo.Allocate(width, height, pixels, pitch);
+  Core1Beat("emulating");
+  return ret;
 }
 
 void CKernel::VideoSetView(int x, int y, int w, int h, double aspect) {
+  Core1Beat("laying out the picture");
   mVideo.SetView(x, y, w, h, aspect, mOptions.GetDouble("scale", 1.0));
+  Core1Beat("emulating");
 }
 
 void CKernel::DisplaySize(int *width, int *height) {
@@ -839,15 +842,26 @@ bool CKernel::DisplayMatchRate(double fps) {
 
 bool CKernel::DisplayResolutionChoice(void) { return mVideo.ResolutionChoice(); }
 
+// Time spent in VideoPresent()'s three parts, in clock ticks, for the log
+// (host_video_times()).
+static u64 s_PresentTicks[3];
+
 void CKernel::VideoPresent(int wait_vsync) {
   // Let Circle's tasks (the network, the web UI) run once per frame.
   Core1Beat("running Circle tasks");
+  u64 t0 = CTimer::GetClockTicks64();
   CScheduler::Get()->Yield();
   Core1Beat("writing the log file");
+  u64 t1 = CTimer::GetClockTicks64();
   mLog.Drain();
   Core1Beat("showing a frame (framebuffer)");
+  u64 t2 = CTimer::GetClockTicks64();
   mVideo.Present(wait_vsync != 0);
   Core1Beat("emulating");
+  u64 t3 = CTimer::GetClockTicks64();
+  s_PresentTicks[0] += t1 - t0;
+  s_PresentTicks[1] += t2 - t1;
+  s_PresentTicks[2] += t3 - t2;
 }
 
 //
@@ -1033,7 +1047,14 @@ void CKernel::PowerOff(void) {
 
 // A crash during start up: the log so far, with the crash report, goes to
 // the card before the Pi halts.
-void CKernel::PanicHandler(void) { FlushStartupLog(); }
+// A panic on any core halts them all (Circle's CMultiCoreSupport::HaltAll),
+// so the log, with the panic's message, goes out now or never.
+void CKernel::PanicHandler(void) {
+  CKernel *kernel = CKernel::Get();
+  if (kernel != 0) {
+    kernel->mLog.Flush();
+  }
+}
 
 void FlushStartupLog(void) {
   CKernel *kernel = CKernel::Get();
@@ -1141,6 +1162,23 @@ void host_network_status(char *text, unsigned size) {
 }
 
 double host_time(void) { return CKernel::Get()->Time(); }
+
+void host_video_times(double *tasks, double *log, double *picture) {
+#if RASPPI >= 4
+  *tasks = (double)s_PresentTicks[0] / CLOCKHZ;
+  *log = (double)s_PresentTicks[1] / CLOCKHZ;
+  *picture = (double)s_PresentTicks[2] / CLOCKHZ;
+  s_PresentTicks[0] = s_PresentTicks[1] = s_PresentTicks[2] = 0;
+#else
+  *tasks = *log = *picture = 0;
+#endif
+}
+
+void host_cpu_status(unsigned *mhz, unsigned *celsius) {
+  CCPUThrottle *throttle = CCPUThrottle::Get();
+  *mhz = throttle ? throttle->GetClockRate() / 1000000 : 0;
+  *celsius = throttle ? throttle->GetTemperature() : 0;
+}
 
 void host_sleep_us(unsigned us) {
   // Sleep in small steps so Circle's tasks keep running.

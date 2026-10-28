@@ -1,0 +1,130 @@
+diff --git a/libgloss/circle/io.cpp b/libgloss/circle/io.cpp
+index 8fb96bd77..f7cd209cf 100644
+--- a/libgloss/circle/io.cpp
++++ b/libgloss/circle/io.cpp
+@@ -241,6 +241,10 @@ namespace _CircleStdlib
+             if (fresult == FR_OK)
+             {
+                 result = true;
++                if (!(fatfs_flags & (FA_CREATE_ALWAYS | FA_OPEN_APPEND)))
++                {
++                    StartFastSeek ();
++                }
+             }
+             else
+             {
+@@ -328,6 +332,12 @@ namespace _CircleStdlib
+         int
+         Write (const void *pBuffer, int nCount)
+         {
++            if (FastSeeking ()
++                && f_tell (&mFile) + static_cast<FSIZE_t> (nCount) > f_size (&mFile))
++            {
++                StopFastSeek ();
++            }
++
+             UINT bytesWritten = 0;
+             auto const fresult = f_write (&mFile, pBuffer,
+                                           static_cast<UINT> (nCount),
+@@ -397,6 +407,11 @@ namespace _CircleStdlib
+             int result;
+             if (new_pos >= 0)
+             {
++                if (FastSeeking ()
++                    && static_cast<FSIZE_t>(new_pos) > f_size(&mFile))
++                {
++                    StopFastSeek ();
++                }
+                 int const fresult = f_lseek(&mFile, static_cast<FSIZE_t>(new_pos));
+ 
+                 switch (fresult)
+@@ -428,6 +443,7 @@ namespace _CircleStdlib
+         Close (void)
+         {
+             auto const close_result = f_close (&mFile);
++            StopFastSeek ();
+ 
+             int result;
+             switch (close_result)
+@@ -468,6 +484,7 @@ namespace _CircleStdlib
+ 
+             FSIZE_t const cur_pos = f_tell(&mFile);
+ 
++            StopFastSeek ();
+             if (f_lseek(&mFile, (FSIZE_t) length) != F_OK)
+             {
+                 errno = EIO;
+@@ -543,6 +560,73 @@ namespace _CircleStdlib
+         }
+ 
+         FIL mFile;
++
++        /*
++         * FatFs's fast seek, for big files (disk images): without it a
++         * seek back follows the file's cluster chain from its start, one
++         * FAT sector read at a time, which for a file of gigabytes is
++         * hundreds of reads from the SD card a seek. The map of the
++         * file's clusters is made once, as it is opened. A file in fast
++         * seek mode can't grow, so the map is let go before it would.
++         */
++        static constexpr FSIZE_t FastSeekMinSize = 1024 * 1024;
++
++        void
++        StartFastSeek (void)
++        {
++#if FF_USE_FASTSEEK
++            if (f_size (&mFile) < FastSeekMinSize)
++            {
++                return;
++            }
++            DWORD items = 64;
++            for (int attempt = 0; attempt < 2; attempt++)
++            {
++                DWORD *table = static_cast<DWORD *> (malloc (items * sizeof (DWORD)));
++                if (table == nullptr)
++                {
++                    return;
++                }
++                table[0] = items;
++                mFile.cltbl = table;
++                FRESULT const fresult = f_lseek (&mFile, CREATE_LINKMAP);
++                if (fresult == FR_OK)
++                {
++                    return;
++                }
++                // Too small: the first item is the size needed.
++                items = table[0];
++                mFile.cltbl = nullptr;
++                free (table);
++                if (fresult != FR_NOT_ENOUGH_CORE)
++                {
++                    return;
++                }
++            }
++#endif
++        }
++
++        bool
++        FastSeeking (void) const
++        {
++#if FF_USE_FASTSEEK
++            return mFile.cltbl != nullptr;
++#else
++            return false;
++#endif
++        }
++
++        void
++        StopFastSeek (void)
++        {
++#if FF_USE_FASTSEEK
++            if (mFile.cltbl != nullptr)
++            {
++                free (mFile.cltbl);
++                mFile.cltbl = nullptr;
++            }
++#endif
++        }
+         char *mFilename;
+     };
+ 

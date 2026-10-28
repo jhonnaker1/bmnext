@@ -13,8 +13,8 @@
 #   pi5            kernel_2712.img: Pi 5, Pi 500 and Pi 500+, 64-bit (see
 #                  docs/PI5.md)
 #
-# --skip-patches leaves Circle as it is instead of resetting it and applying
-# src/patches/ again.
+# --skip-patches leaves Circle and circle-newlib as they are instead of
+# resetting them and applying src/patches/ again.
 # Run clean_all.sh first for a completely fresh build, and before building
 # for a different board: the libraries are built for one board at a time.
 #
@@ -150,6 +150,15 @@ else
     git reset -q --hard HEAD
     git clean -q -fd
     for p in "$SRC_DIR"/src/patches/circle_*.diff
+    do
+        echo "  $(basename "$p")"
+        patch -s -p1 < "$p"
+    done
+    # circle-newlib, Circle's C library (its file functions on FatFs).
+    cd "$CIRCLE_STDLIB/libs/circle-newlib"
+    git reset -q --hard HEAD
+    git clean -q -fd
+    for p in "$SRC_DIR"/src/patches/newlib_*.diff
     do
         echo "  $(basename "$p")"
         patch -s -p1 < "$p"

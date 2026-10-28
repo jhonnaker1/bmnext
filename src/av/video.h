@@ -109,6 +109,11 @@ private:
   void CopyLine(uint8_t *dst, uint32_t *line) const;
   void SetViewKms(int x, int y, int w, int h, double aspect, double scale);
   void PresentKms(bool wait_vsync);
+  // The sharp picture on the HVS: what each of the display's two buffers
+  // was last given of the view (KmsShadow(), 0 if there is no memory for
+  // it), so only the lines that changed are drawn again.
+  uint16_t *KmsShadow(unsigned buffer);
+  bool KmsShows(unsigned buffer);
   void WaitForVerticalSync(void);
   bool DrawnByArm(void) const;
   void ConfigureGpu(void);
@@ -168,6 +173,9 @@ private:
   unsigned m_nKmsSrcW, m_nKmsSrcH;
   double m_fKmsAspect, m_fKmsScale;  // the last SetViewKms()'s
   bool m_bKmsResize;                 // SetViewKms() again at the next frame
+  uint16_t *m_pKmsShadow[2];         // see KmsShadow()
+  bool m_bKmsShadowValid[2];
+  unsigned m_nKmsShadowW, m_nKmsShadowH;
 
   static Pi4Video *s_pThis;
 };

@@ -34,7 +34,7 @@ run on a Raspberry Pi, and its speed there is not known.
 - USB keyboards (keys go to the NeXT by where they are) and mice
 - The NeXT's own network (Machine, Ethernet Connected), through the Pi's
   Ethernet or Wi-Fi: NeXTSTEP gets its address by itself, and reaches what
-  the Pi does (untested on a Pi so far)
+  the Pi does
 - No shutdown needed: just switch it off
 - A menu (F12) for the disks (blank ones too), the machine, ROM, memory,
   what it starts from, the mouse's speed, video, sound and network

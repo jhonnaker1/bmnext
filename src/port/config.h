@@ -37,12 +37,14 @@
 #define HAVE_FTELLO 1
 #define HAVE_DIRENT_D_TYPE 1
 
-/* The NeXT's memory is allocated 64K aligned (cpu/maccess.h): newlib has
-   aligned_alloc() but not posix_memalign(); the PC's C library has both. */
+/* The NeXT's memory is allocated 64K aligned (cpu/maccess.h) where the C
+   library can. On the Pi it can't: newlib's aligned_alloc() is Circle's
+   memalign(), which asserts the alignment is at most a cache line (64
+   bytes), a panic that stops every core before anything is shown. There
+   it is plain malloc() (Previous's own fall back), which Previous's memory
+   banks don't mind. */
 #ifdef BMNEXT_HOST_LIBC
 #define HAVE_POSIX_MEMALIGN 1
-#else
-#define HAVE_ALIGNED_ALLOC 1
 #endif
 
 /* struct stat's times: newlib's and Linux's are st_atim, st_mtim (POSIX),

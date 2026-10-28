@@ -153,6 +153,13 @@ void host_udp_close(int handle);
 /* The DNS server the network's DHCP gave (network byte order). Returns 0
    if there is none (no network). */
 int host_dns_server(uint32_t *ip);
+/* The ARM's clock now, in MHz, and the chip's temperature, in degrees C
+   (0 if unknown). */
+void host_cpu_status(unsigned *mhz, unsigned *celsius);
+/* Seconds host_video_present() spent since the last call, in its parts:
+   the kernel's tasks, writing the log, and the picture (0 where it isn't
+   measured). */
+void host_video_times(double *tasks, double *log, double *picture);
 /* A Wi-Fi network found by host_wifi_scan(). signal is in dBm. */
 struct host_wifi_ap {
 	char ssid[33];

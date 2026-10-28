@@ -189,3 +189,17 @@ char *Paths_GetMacScreenShotDir(void)
 }
 
 #endif /* BMNEXT_HOST_LIBC */
+
+/* tmpfile(), for Previous (previous_prefix.h): its settings are saved by
+   copying previous.cfg through a temporary file (cfgopts.c). newlib's
+   tmpfile() makes one in /tmp, which the SD card hasn't ("Not a
+   directory": nothing after the first section was saved), and deletes
+   it while it is open, which FatFs, without file locking, doesn't stand.
+   The file is in memory instead, on the PC too, so the test harness saves
+   the same way: settings files are a few kilobytes. */
+#include <stdio.h>
+
+FILE *bmnext_tmpfile(void)
+{
+	return fmemopen(NULL, 256 * 1024, "w+");
+}

@@ -162,14 +162,13 @@ private:
   CLogDevice mLog;
   CTimer mTimer;
   CLogger mLogger;
-#if RASPPI <= 4
   // Without an operating system asking for more, the firmware leaves the
-  // ARM at its lowest clock (600 MHz on a Pi 3 B+, not 1.4 GHz); this
-  // sets the highest when it is constructed, before the SD card and Wi-Fi
-  // take their clocks. The firmware still slows it down if the chip gets
-  // too hot. (Update() is never called: it would slow it down at 60 C.)
+  // ARM at its lowest clock (600 MHz on a Pi 3 B+, not 1.4 GHz; 1.5 GHz,
+  // not 2.4, on a Pi 5); this sets the highest when it is constructed,
+  // before the SD card and Wi-Fi take their clocks. The firmware still
+  // slows it down if the chip gets too hot. (Update() is never called: it
+  // would slow it down at 60 C.)
   CCPUThrottle mCPUThrottle;
-#endif
   CScheduler mScheduler;
   CGPIOManager mGPIOManager;
 #if RASPPI <= 3

@@ -25,6 +25,7 @@
 #undef host_sleep_us
 
 #include "../host.h"
+#include "bmnext.h"
 
 /* ---- Locks and atomics (one thread: nothing waits) ---------------------- */
 
@@ -150,11 +151,13 @@ void host_sleep_ms(uint32_t ms)
 /* Previous's takes 64 bits, the kernel's 32: long sleeps are cut up. */
 void host_sleep_us64(uint64_t us)
 {
+	double t = host_time();
 	while (us > 0) {
 		unsigned part = us > 1000000u ? 1000000u : (unsigned) us;
 		host_sleep_us(part);
 		us -= part;
 	}
+	bmnext_prof[PROF_SLEEP] += host_time() - t;
 }
 
 /* Microseconds. */
