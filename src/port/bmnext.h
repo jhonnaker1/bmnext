@@ -96,6 +96,14 @@ void bmnext_stop(const char *why);
 /* How fast the emulation runs, in percent of the real machine's speed. */
 int bmnext_speed_percent(void);
 
+/* ---- enet_next.c (or nonet.c) --------------------------------------- */
+
+/* The NeXT's network: SLiRP's connections and timers, 200 times a second
+   (bmnext_tick()). */
+void enet_next_poll(void);
+/* Previous's NFS, NetInfo and other servers' sockets (rpc_sockets.c). */
+void rpc_sockets_poll(void);
+
 /* ---- menu.c ---------------------------------------------------------------- */
 
 void bmnext_menu(void);

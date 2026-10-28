@@ -15,6 +15,8 @@
 #include "main.h"
 #include "enet_slirp.h"
 
+#include "bmnext.h"
+
 void enet_slirp_queue_poll(void)
 {
 }
@@ -37,5 +39,9 @@ void enet_slirp_start(uint8_t *mac)
 }
 
 void enet_slirp_uninit(void)
+{
+}
+
+void enet_next_poll(void)
 {
 }

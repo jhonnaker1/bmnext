@@ -43,7 +43,7 @@ PREVIOUS_LIB := $(BUILD)/libprevious.a
 OBJS = src/main.o src/kernel.o src/logging.o src/options.o \
        src/port/platform.o src/port/menu.o src/port/osd.o src/port/posix_extra.o \
        src/port/fswrap.o \
-       $(addprefix src/port/,$(PREVIOUS_PORT_SRCS:.c=.o)) \
+       $(addprefix src/port/,$(PREVIOUS_PORT_SRCS:.c=.o) $(PREVIOUS_PORT_NET_NONE:.c=.o)) \
        src/network.o src/network_time_sync.o \
        src/webui/webui.o src/webui/webui_http.o src/webui/webui_fs.o \
        src/webui/webui_machine.o src/webui/webui_assets.o \

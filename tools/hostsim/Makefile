@@ -22,7 +22,13 @@ CFLAGS = -O2 -g -DBMNEXT_HOST_LIBC
 PREVIOUS_FLAGS = $(CFLAGS) $(PREVIOUS_CFLAGS) $(PREVIOUS_INCLUDES) \
                  -include $(ROOT)/src/port/compat/previous_prefix.h
 
-PORT_SRCS = platform.c menu.c osd.c posix_extra.c $(PREVIOUS_PORT_SRCS)
+PORT_SRCS = platform.c menu.c osd.c posix_extra.c $(PREVIOUS_PORT_SRCS) \
+            $(PREVIOUS_PORT_NET_SLIRP)
+
+# SLiRP, with the PC's sockets (src/port/previous.mk).
+SLIRP_DEFS = $(PREVIOUS_SLIRP_CFLAGS) \
+             $(if $(wildcard /usr/include/sys/filio.h)$(filter Darwin,$(shell uname)),-DHAVE_SYS_FILIO_H)
+SLIRP_FLAGS = $(PREVIOUS_FLAGS) $(SLIRP_DEFS) -I $(PREVIOUS)/slirp
 
 OBJS := $(addprefix $(OUT)/previous/,$(PREVIOUS_CORE_SRCS:.c=.o)) \
         $(addprefix $(OUT)/previous/cpu/,$(PREVIOUS_CPU_SRCS:.c=.o)) \
@@ -30,6 +36,7 @@ OBJS := $(addprefix $(OUT)/previous/,$(PREVIOUS_CORE_SRCS:.c=.o)) \
         $(addprefix $(OUT)/previous/softfloat/,$(PREVIOUS_SOFTFLOAT_SRCS:.c=.o)) \
         $(addprefix $(OUT)/previous/dsp/,$(PREVIOUS_DSP_SRCS:.c=.o)) \
         $(addprefix $(OUT)/previous/debug/,$(PREVIOUS_DEBUG_SRCS:.c=.o)) \
+        $(addprefix $(OUT)/previous/slirp/,$(PREVIOUS_SLIRP_SRCS:.c=.o)) \
         $(addprefix $(OUT)/zlib/,$(ZLIB_SRCS:.c=.o)) \
         $(addprefix $(OUT)/port/,$(PORT_SRCS:.c=.o)) \
         $(OUT)/host_sim.o $(OUT)/live.o
@@ -60,6 +67,10 @@ $(addprefix $(GEN)/,$(filter-out cpustbl.c,$(PREVIOUS_CPUGEN_SRCS))) $(GEN)/cput
 $(OUT)/gen/%.o: $(GEN)/%.c
 	@$(CC) $(PREVIOUS_FLAGS) -c -o $@ $<
 
+$(OUT)/previous/slirp/%.o: $(PREVIOUS)/slirp/%.c
+	@mkdir -p $(dir $@)
+	@$(CC) $(SLIRP_FLAGS) -c -o $@ $<
+
 $(OUT)/previous/%.o: $(PREVIOUS)/%.c $(GEN)/cputbl.h
 	@mkdir -p $(dir $@)
 	@$(CC) $(PREVIOUS_FLAGS) -c -o $@ $<
@@ -71,7 +82,8 @@ $(OUT)/zlib/%.o: $(ZLIB)/%.c
 $(OUT)/port/%.o: $(ROOT)/src/port/%.c $(ROOT)/src/port/bmnext.h \
                  $(ROOT)/src/port/osd.h $(ROOT)/src/host.h $(GEN)/cputbl.h
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -std=gnu11 $(PREVIOUS_INCLUDES) -include $(ROOT)/src/port/compat/previous_prefix.h \
+	$(CC) $(CFLAGS) -std=gnu11 $(PREVIOUS_INCLUDES) -I $(PREVIOUS)/slirp $(SLIRP_DEFS) \
+	      -include $(ROOT)/src/port/compat/previous_prefix.h \
 	      -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -c -o $@ $<
 
 $(OUT)/host_sim.o: host_sim.c live.h $(ROOT)/src/host.h

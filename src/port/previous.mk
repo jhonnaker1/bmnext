@@ -132,9 +132,58 @@ PREVIOUS_PORT_SRCS = \
 	keymap.c \
 	main_next.c \
 	nextbus.c \
-	nonet.c \
 	screen.c \
 	statusbar.c
+
+# The NeXT's network: SLiRP (Previous's src/slirp/, a NAT router that
+# turns the NeXT's packets into the host's own connections), driven by
+# enet_next.c on the emulator's thread in place of enet_slirp.c's thread,
+# and Previous's own servers' sockets polled by rpc_sockets.c in place of
+# the threads of rpc/csocket.c, udpsocket.c and tcpsocket.c. It needs the
+# host's sockets: the PC test harness has them; the Pi has none yet, and
+# builds nonet.c (no network) instead.
+PREVIOUS_PORT_NET_SLIRP = enet_next.c rpc_sockets.c
+PREVIOUS_PORT_NET_NONE = nonet.c
+
+# src/slirp/CMakeLists.txt's list, but rpc/csocket.c, udpsocket.c and
+# tcpsocket.c (rpc_sockets.c instead). rpc/ has Previous's own NFS,
+# NetInfo, portmap and DNS servers, which SLiRP passes the NeXT's requests.
+PREVIOUS_SLIRP_SRCS = \
+	bootp.c \
+	cksum.c \
+	if.c \
+	ip_icmp.c \
+	ip_input.c \
+	ip_output.c \
+	mbuf.c \
+	misc.c \
+	ntp.c \
+	rip.c \
+	sbuf.c \
+	slirp.c \
+	slirpdebug.c \
+	socket.c \
+	tcp_input.c \
+	tcp_output.c \
+	tcp_subr.c \
+	tcp_timer.c \
+	tftp.c \
+	udp.c \
+	rpc/xdr.c \
+	rpc/rpc.c \
+	rpc/portmap.c \
+	rpc/bootparam.c \
+	rpc/mount.c \
+	rpc/nfs.c \
+	rpc/netinfo.c \
+	rpc/netinfobind.c \
+	rpc/dns.c \
+	rpc/filetable.c \
+	rpc/vfs.c
+
+# What SLiRP's CMake build finds (src/slirp/CMakeLists.txt), for a host C
+# library with BSD sockets.
+PREVIOUS_SLIRP_CFLAGS = -DHAVE_SYS_IOCTL_H -DHAVE_UNISTD_H -DHAVE_STRERROR
 
 # zlib: everything but the examples and contrib.
 ZLIB_SRCS = \

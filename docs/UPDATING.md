@@ -22,7 +22,9 @@ everything specific to BMNeXT is in `src/port/`:
 | `src/port/main_next.c` | Previous's `main.c` without SDL or threads: start up, the CPU loop, `Main_EventHandler()` |
 | `src/port/host_next.c` | Previous's `host.h` (`src/gui-sdl/sdlhost.c`) on one thread |
 | `src/port/nextbus.c` | Previous's `NextBus.cpp` without the NeXTdimension, and the NeXTdimension's functions as stubs |
-| `src/port/nonet.c` | `enet_slirp.c`'s functions, with no network |
+| `src/port/enet_next.c` | `enet_slirp.c` without its thread: SLiRP polled from the emulator's event handler (the PC simulator; the Pi has no sockets yet) |
+| `src/port/rpc_sockets.c` | `src/slirp/rpc/csocket.c`, `udpsocket.c` and `tcpsocket.c` without their threads: Previous's NFS, NetInfo and other servers' sockets polled |
+| `src/port/nonet.c` | `enet_slirp.c`'s functions, with no network (the Pi, for now) |
 | `src/port/screen.c`, `audio.c`, `keymap.c`, `gui_event.c`, `statusbar.c`, `dialogs.c` | The same functions as Previous's `src/gui-sdl/` files |
 | `src/port/posix_extra.c` | `timegm()`, `scandir()`, `utime()`, `access()`, `chmod()` for newlib |
 | `src/port/menu.c` | Changes Previous's settings (`ConfigureParams`) and applies them with `Change_CopyChangedParamsToConfiguration()`, as Previous's SDL dialogs do |

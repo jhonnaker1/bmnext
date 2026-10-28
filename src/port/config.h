@@ -45,6 +45,14 @@
 #define HAVE_ALIGNED_ALLOC 1
 #endif
 
+/* struct stat's times: newlib's and Linux's are st_atim, st_mtim (POSIX),
+   macOS's (the PC test harness on a Mac) st_atimespec, st_mtimespec. The
+   NFS server (src/slirp/rpc/) reads them. */
+#ifdef __APPLE__
+#define HAVE_STRUCT_STAT_ST_ATIMESPEC 1
+#define HAVE_STRUCT_STAT_ST_MTIMESPEC 1
+#endif
+
 /* newlib has neither, nor the d_reclen Previous's own scandir.c needs: on
    the Pi they are BMNeXT's (posix_extra.c); the PC's C library has them. */
 #define HAVE_SCANDIR 1

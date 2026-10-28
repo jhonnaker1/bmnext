@@ -442,6 +442,7 @@ static void show_frame(void)
 void bmnext_tick(void)
 {
 	double now = host_time();
+	enet_next_poll();
 	if (now >= next_frame) {
 		show_frame();
 		next_frame += 1.0 / refresh_rate;

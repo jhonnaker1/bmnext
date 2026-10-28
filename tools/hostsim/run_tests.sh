@@ -172,6 +172,14 @@ fi
 check_cfg blank previous.cfg "^szImageName0 = .*disks/blank105\.sd" "it is SCSI disk 0"
 check_log blank "SCSI disk 0: Insert .*blank105\.sd" "the NeXT has it"
 
+echo "The network (SLiRP)"
+# Started from the network: the ROM asks for its address (BOOTP), which
+# SLiRP answers, and loads its boot file over TFTP.
+run netboot "" '3000 shot a.ppm\n3001 quit\n' 'nMachineType = 0\n[Boot]\nnBootDevice = 2\n[Ethernet]\nbEthernetConnected = TRUE\n'
+check_log netboot "Starting SLIRP" "SLiRP starts"
+check_log netboot "network: first packet from the NeXT" "the NeXT's packets reach SLiRP"
+check_log netboot "network: first packet to the NeXT" "SLiRP's answers reach the NeXT"
+
 echo "A CPU that halts stops, and waits"
 run halt "" '600 quit\n' 'nMachineType = 2\nnCpuLevel = 3\n'
 check_log halt "CPU halted" "the CPU halted"
