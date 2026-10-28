@@ -159,6 +159,10 @@ for u in 0x0b 0x08 0x0f 0x13 $ENTER; do FAST="${FAST}1210 key $u 1\n1210 key $u 
 run fasttype "" "${FAST}1500 shot after.ppm\n1501 quit\n"
 cp "$OUT/typing/after.ppm" "$OUT/fasttype/typed.ppm"
 same fasttype typed after
+# The Turbos' keyboard is Apple's (ADB): A is its key code 0, which the
+# key table also had for "no key", so A did nothing.
+run adbkeys "" "1800 shot before.ppm\n$(key $A 1810)1900 shot after.ppm\n1901 quit\n" "$TURBOCOLOR"
+differ adbkeys before after
 
 echo "The menu"
 run menu "" "1200 shot before.ppm\n$(key $F12 1210)1230 shot menu.ppm\n$(key $ESC 1240)1260 shot after.ppm\n1261 quit\n"
@@ -205,6 +209,25 @@ if [ "$(grep -c "CPU halted" "$OUT/halt/log.txt")" -le 2 ]; then
     pass "halt: it halted once, and waited"
 else
     fail "halt" "it halted again and again (see out/halt/log.txt)"
+fi
+
+echo "Sound at the NeXT's pitch over the Pi 5's HDMI (48 kHz, 32 ms at a time)"
+# Sound, Test Tone (NeXT's Way): two seconds at 44.1 kHz, made the NeXT's
+# way, must be two seconds at 48 kHz, 96000 frames, neither stretched
+# (lower) nor squeezed (higher). With a buffer too small for the HDMI's
+# transfers it came out stretched.
+TONE_SCRIPT="$(key $F12 300)$(key $DOWN 320)$(key $DOWN 330)$(key $DOWN 340)$(key $DOWN 350)$(key $ENTER 360)$(key $DOWN 380)$(key $DOWN 390)$(key $DOWN 400)420 audio\n$(key $ENTER 430)800 audio\n801 quit\n"
+mkdir -p "$OUT/tone"
+ln -s "$OUT/roms" "$OUT/tone/roms" 2>/dev/null
+(cd "$OUT/tone" && printf "$TONE_SCRIPT" | BMNEXT_SIM_RATE=48000 BMNEXT_SIM_CHUNK=1536 \
+    BMNEXT_CMDLINE="root=." "$SIM" > log.txt 2>&1)
+tone=$(grep "audio written" "$OUT/tone/log.txt" | sed 's/.*sound \([0-9]*\) frames.*/\1/' |
+       awk 'NR == 1 { a = $1 } NR == 2 { print $1 - a }')
+check_log tone "test tone, 440 Hz at 44100 Hz .the NeXT's way." "the tone played the NeXT's way"
+if [ -n "$tone" ] && [ "$tone" -ge 95000 ] && [ "$tone" -le 97000 ]; then
+    pass "tone: 2 s of it is 2 s at 48 kHz ($tone frames)"
+else
+    fail "tone" "2 s of sound came out as ${tone:-no} frames at 48 kHz, not 96000"
 fi
 
 echo "No ROM"

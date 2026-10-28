@@ -721,7 +721,7 @@ static void video_menu(void)
 
 static void sound_menu(void)
 {
-	enum { S_VOLUME, S_OUTPUT };
+	enum { S_VOLUME, S_OUTPUT, S_TONE, S_TONE_NEXT };
 	static const char *const volumes[] = {
 		"100%", "90%", "80%", "70%", "60%", "50%", "40%", "30%", "20%", "10%", "Off", NULL
 	};
@@ -736,6 +736,8 @@ static void sound_menu(void)
 		struct osd_item items[] = {
 			{"Volume", volume, OSD_ITEM_SUBMENU, S_VOLUME},
 			{"Output (reboot)", output_names[out_index], OSD_ITEM_SUBMENU, S_OUTPUT},
+			{"Test Tone (440 Hz)", NULL, 0, S_TONE},
+			{"Test Tone (NeXT's Way)", NULL, 0, S_TONE_NEXT},
 		};
 		int chosen, i;
 		if (bmnext_volume() == 0)
@@ -747,6 +749,10 @@ static void sound_menu(void)
 			i = osd_choose("Volume", volumes, (100 - bmnext_volume() + 5) / 10);
 			if (i >= 0)
 				bmnext_set_volume(100 - i * 10);
+			continue;
+		}
+		if (chosen == S_TONE || chosen == S_TONE_NEXT) {
+			bmnext_test_tone(chosen == S_TONE_NEXT);
 			continue;
 		}
 		if (chosen != S_OUTPUT)

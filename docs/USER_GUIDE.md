@@ -164,10 +164,13 @@ its settings as it starts (NetInfo), and an NFS server sharing the SD card
 with the NeXT (as `nfs`, at 10.0.2.254).
 
 Nothing comes in from outside: the NeXT can connect out, but other
-computers can't connect to it. Ping doesn't work (it needs a kind of
-socket BMNeXT doesn't have); a connection to a server does.
+computers can't connect to it. Ping only reaches SLiRP's own addresses
+(10.0.2.2, 10.0.2.3): SLiRP, in Previous too, can't send real pings, so a
+ping to the Internet gets no answer, while a connection to a server (by
+name or address) works. If names don't resolve (OPENSTEP 4.2 may need
+it), make `/etc/resolv.conf` with the line `nameserver 10.0.2.3`.
 
-So far this has been tested in the PC simulator, not on a Pi.
+Tested on a Raspberry Pi 5 with OPENSTEP 4.2.
 
 ## Networking and the web UI
 
@@ -251,7 +254,7 @@ Previous's settings, `previous.cfg`, which the menu changes.
 | `sound`             | `0`, `1`                     | `1`      | Sound on or off |
 | `volume`            | 0 to 100                     | `100`    | Sound volume |
 | `audio_out`         | `auto`, `hdmi`, `headphones` | `auto`   | Where the sound goes (`auto`: HDMI, or the headphone jack if the display takes no sound) |
-| `audio_buffer_ms`   | 20 to 500                    | `60`     | Sound buffer; raise it if the sound breaks up |
+| `audio_buffer_ms`   | 20 to 500                    | `120`    | Sound buffer; raise it if the sound breaks up |
 | `enable_logging`    | `off`, `uart`, `file`        | `off`    | Where the log goes (see Logging) |
 | `network`           | `off`, `ethernet`, `wifi`    | `off`    | Networking (see Networking and the web UI) |
 | `webui`             | `0`, `1`                     | `1`      | Web UI when networking is on |
@@ -310,7 +313,7 @@ display doesn't accept 1080p at 60 Hz; try another `hdmi_mode`.
 **Sound breaks up, or the menu's speed line is under 100%**: the Pi can't
 keep up with that machine. The NeXT Computer (68030, 25 MHz) and the
 68040 machines at 25 MHz take less than the Turbos (33 MHz). For the sound
-alone, raise `audio_buffer_ms` in `cmdline.txt`, e.g. to 100.
+alone, raise `audio_buffer_ms` in `cmdline.txt`, e.g. to 200.
 
 **The TV cuts off the edges of the picture or the menu**: many TVs enlarge
 the picture and crop its edges (overscan). Make *Video*, *Screen Size*

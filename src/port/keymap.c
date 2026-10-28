@@ -159,6 +159,11 @@ static int adb(void)
 	return ConfigureParams.System.bADB && ConfigureParams.System.bTurbo;
 }
 
+int bmnext_keyboard_adb(void)
+{
+	return adb();
+}
+
 /* The modifier keys held (USB usages 0xe0-0xe7, bit 0 left Control) and
    Caps Lock's state. */
 static unsigned held_mods;
@@ -194,6 +199,9 @@ static uint8_t apple_key(int usage)
 		return swap ? APPLEKEY_OPTION_LEFT : APPLEKEY_APPLE_LEFT;
 	case 0xe2: case 0xe6:
 		return swap ? APPLEKEY_APPLE_LEFT : APPLEKEY_OPTION_LEFT;
+	case 0x04:
+		/* A is Apple's key 0, which in the table means no key. */
+		return APPLEKEY_a;
 	default:
 		return usage_to_apple[usage] ? usage_to_apple[usage] : NO_KEY;
 	}

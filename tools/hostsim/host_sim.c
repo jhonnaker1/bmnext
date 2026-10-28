@@ -205,6 +205,12 @@ static unsigned snd_capacity = 0;
 static double snd_buffered = 0;   /* frames queued at the "VideoCore" */
 static double snd_last = 0.0;
 static long snd_written = 0, snd_underruns = 0, snd_writes = 0, snd_nonzero = 0;
+/* Frames written that weren't silence (in writes with sound in them). */
+static long snd_sound = 0;
+/* BMNEXT_SIM_CHUNK: the output takes this many frames at a time, as the
+   Pi 5's HDMI does (1536), rather than smoothly; 0: smoothly. */
+static unsigned snd_chunk = 0;
+static double snd_chunk_due = 0;   /* frames of play until the next take */
 static double snd_min_fill = 1e9, snd_max_fill = 0;
 
 static void sound_advance(void)
@@ -216,6 +222,17 @@ static void sound_advance(void)
 		now = real_time();
 	played = (now - snd_last) * HW_RATE;
 	snd_last = now;
+	if (snd_chunk != 0) {
+		/* A whole chunk leaves the buffer as the last one starts to
+		   play. */
+		double taken = 0;
+		snd_chunk_due -= played;
+		while (snd_chunk_due <= 0) {
+			taken += snd_chunk;
+			snd_chunk_due += snd_chunk;
+		}
+		played = taken;
+	}
 	if (played > snd_buffered) {
 		if (snd_written > HW_RATE) { /* ignore start up */
 			snd_underruns++;
@@ -232,8 +249,11 @@ unsigned host_sound_open(unsigned freq, int channels, unsigned latency_frames)
 {
 	const char *rate = getenv("BMNEXT_SIM_RATE");
 	(void) freq;
+	const char *chunk = getenv("BMNEXT_SIM_CHUNK");
 	if (rate != NULL && atoi(rate) >= 8000)
 		hw_rate = (unsigned) atoi(rate);
+	if (chunk != NULL && atoi(chunk) > 0)
+		snd_chunk = (unsigned) atoi(chunk);
 	snd_open = 1;
 	snd_channels = channels;
 	snd_capacity = (unsigned) ((unsigned long) latency_frames * hw_rate / 44100);
@@ -276,6 +296,11 @@ void host_sound_write(const int16_t *samples, unsigned frames)
 	for (i = 0; i < frames * snd_channels; i++)
 		if (samples[i] != samples[0])
 			snd_nonzero++;
+	for (i = 0; i < frames * snd_channels; i++)
+		if (samples[i] != 0) {
+			snd_sound += frames;
+			break;
+		}
 	if (snd_written > HW_RATE * 2) {
 		if (snd_buffered < snd_min_fill) snd_min_fill = snd_buffered;
 	}
@@ -530,9 +555,9 @@ static void run_script(void)
 		} else if (strcmp(cmd, "audio") == 0) {
 			fprintf(stderr, "[sim] frame %ld: audio written %ld frames in %ld writes, "
 			        "queue before write min %.0f, after write max %.0f, underruns %ld, "
-			        "changing samples %ld\n",
+			        "changing samples %ld, sound %ld frames\n",
 			        frame, snd_written, snd_writes, snd_min_fill, snd_max_fill, snd_underruns,
-			        snd_nonzero);
+			        snd_nonzero, snd_sound);
 			fprintf(stderr, "[sim] frame %ld: %ld frames presented\n", frame, presents);
 		} else if (strcmp(cmd, "quit") == 0) {
 			fprintf(stderr, "[sim] quit at frame %ld (%.2f s)\n", frame, now);

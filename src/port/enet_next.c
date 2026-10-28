@@ -46,6 +46,62 @@ static uint64_t rip_due;
 /* For the log: the first packets each way show the network works. */
 static int seen_in, seen_out;
 
+/* A UDP packet's checksum, over IP's pseudo header (IP header IP, IP_LEN
+   bytes in all): 0xffff when it is right. */
+static unsigned udp_checksum(const unsigned char *ip, int ip_len)
+{
+	int ihl = (ip[0] & 15) * 4, udp_len = ip_len - ihl, i;
+	uint32_t sum = 0;
+	for (i = 12; i < 20; i += 2)            /* source and destination */
+		sum += (uint32_t) (ip[i] << 8 | ip[i + 1]);
+	sum += 17 + (uint32_t) udp_len;
+	for (i = 0; i + 1 < udp_len; i += 2)
+		sum += (uint32_t) (ip[ihl + i] << 8 | ip[ihl + i + 1]);
+	if (udp_len & 1)
+		sum += (uint32_t) ip[ihl + udp_len - 1] << 8;
+	while (sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+	return sum;   /* 0xffff if right (or the packet has no checksum) */
+}
+
+/* SLiRP's routing table broadcasts (rip.c) give the address family as the
+   C library's AF_INET, which RIP takes to be BSD's (2). Circle's C library
+   has 1, which the NeXT's routed doesn't know, so it never learned its
+   default route (10.0.2.2) on the Pi. Here a RIP packet to the NeXT gets
+   2, and its UDP checksum again. */
+#define RIP_AF_INET 2
+
+static void fix_rip_family(unsigned char *pkt, int len)
+{
+	unsigned char *ip = pkt + 14, *udp, *e;
+	int ihl, ip_len, n;
+	unsigned sum;
+	if (AF_INET == RIP_AF_INET || len < 14 + 28 || pkt[12] != 0x08 ||
+	    pkt[13] != 0x00 || ip[9] != 17)
+		return;
+	ihl = (ip[0] & 15) * 4;
+	ip_len = ip[2] << 8 | ip[3];
+	udp = ip + ihl;
+	if ((udp[0] << 8 | udp[1]) != 520 || ip_len > len - 14)
+		return;
+	/* After the UDP header: command, version, two zeros, then entries of
+	   20 bytes, each starting with its family. */
+	for (e = udp + 8 + 4, n = 0; e + 20 <= ip + ip_len; e += 20)
+		if ((e[0] << 8 | e[1]) == AF_INET) {
+			e[0] = 0;
+			e[1] = RIP_AF_INET;
+			n++;
+		}
+	if (n == 0 || (udp[6] == 0 && udp[7] == 0))
+		return;
+	udp[6] = udp[7] = 0;
+	sum = ~udp_checksum(ip, ip_len) & 0xffff;
+	if (sum == 0)
+		sum = 0xffff;
+	udp[6] = (unsigned char) (sum >> 8);
+	udp[7] = (unsigned char) sum;
+}
+
 /* SLiRP can send the NeXT packets (slirp.c asks). */
 int slirp_can_output(void)
 {
@@ -62,6 +118,7 @@ void slirp_output(const unsigned char *pkt, int pkt_len)
 	}
 	p->len = pkt_len;
 	memcpy(p->data, pkt, pkt_len);
+	fix_rip_family(p->data, pkt_len);
 	QueueEnter(slirpq, p);
 	if (!seen_out) {
 		printf("BMNeXT: network: first packet to the NeXT (%d bytes)\n", pkt_len);
@@ -104,6 +161,7 @@ void enet_next_poll(void)
 	if (rip_due == 0 || now < rip_due - SLIRP_RIP_SEC)
 		rip_due = now + SLIRP_RIP_SEC;
 	if (now >= rip_due) {
+		/* The NeXT's routed learns its default route (10.0.2.2) from it. */
 		slirp_rip_broadcast();
 		rip_due = now + SLIRP_RIP_SEC;
 	}

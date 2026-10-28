@@ -120,6 +120,11 @@ const char *bmnext_machine_text(void);
 /* Opens the sound output; returns the rate in use (0 for none). */
 unsigned bmnext_sound_open(void);
 void bmnext_feed_silence(void);
+/* Two seconds of a 440 Hz tone (the A above middle C), for checking the
+   sound's pitch: written as it is at the output's rate (NEXT_WAY false),
+   or made at the NeXT's 44.1 kHz and sent the way the NeXT's sound goes
+   (NEXT_WAY true). */
+void bmnext_test_tone(int next_way);
 /* The sound volume, 0-100 (kept in bmnext.cfg). */
 int bmnext_volume(void);
 void bmnext_set_volume(int volume);
@@ -145,6 +150,9 @@ void bmnext_screen_dirty_bottom(void);
 
 /* A key (USB HID usage) pressed or released on the NeXT's keyboard. */
 void bmnext_key(int usage, int pressed);
+/* True if the NeXT's keyboard is Apple's (ADB: the Turbos'), false if
+   it is NeXT's own. */
+int bmnext_keyboard_adb(void);
 /* Releases every key held on the NeXT's keyboard (before a menu opens),
    through the queue (gui_event.c). */
 void bmnext_release_keys(void);

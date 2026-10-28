@@ -47,6 +47,11 @@ public:
   // if possible).
   bool Set(Hvs &hvs, const Timing &timing, unsigned audio_fs,
            void (*reinstall)(void *), void *param);
+  // HDMI sound's clock regeneration (CTS) for TIMING's pixel clock, at
+  // AUDIO_FS: Set() does it for a new mode; this is for the mode the
+  // firmware set, where the sound's own guess at the pixel clock may be
+  // wrong (and the sound plays too fast or too slow).
+  void SetAudioClock(const Timing &timing, unsigned audio_fs);
 
 private:
   bool ReadEdidBlock(unsigned b, bool by_display, uint8_t block[128]);

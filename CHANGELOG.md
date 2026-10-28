@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 (2026-10-28)
 
 The first BMNeXT: BMAtariST 0.1.0 (itself from BMApple2, BMCoco, BMA800XL
 and BMC64), with Hatari replaced by Previous (SVN trunk r1858, Previous
@@ -60,6 +60,25 @@ and BMC64), with Hatari replaced by Previous (SVN trunk r1858, Previous
     and circle-newlib, see src/patches/README.md)
   - The log notes every 10 s how fast the NeXT runs, the CPU's clock and
     temperature, and where the emulator's time went
+  - Sound too fast and high, then (once paced) too slow and low: Previous
+    sends the NeXT's sound faster than it plays and waits while the output
+    says it has enough, which BMNeXT never said; and the Pi 5's HDMI takes
+    32 ms at a time, too much for the 60 ms buffer, which the conversion
+    took for running dry and stretched. Now the output says, the buffer is
+    120 ms, and 44.1 kHz becomes 48 kHz at exactly their ratio
+  - HDMI sound's clock regeneration (CTS) set for the mode the firmware
+    chose, which the Pi 5's sound worked out from the wrong clock
+  - Sound, Test Tone and Test Tone (NeXT's Way) in the menu: 440 Hz
+    straight to the output, or made at 44.1 kHz the NeXT's way
+  - The A key on the Turbos' Apple (ADB) keyboard: Apple's key code for A
+    is 0, which the key table took for no key
+  - Keys to the Apple keyboard at most every 15 ms: a burst of them
+    overran its 16 events, losing keys, or a key's release (the key then
+    repeated)
+  - No default route for the NeXT, so no connections out: SLiRP's routing
+    broadcasts give the address family as the C library's AF_INET, which
+    is 1 in Circle's, not BSD's 2, so the NeXT's routed ignored them; they
+    get 2 on their way to the NeXT now
 - Disk images are at most 2 GB on the Pi (circle-newlib's lseek())
 
 Tested in the PC simulator, where NeXTSTEP 3.3 starts to its login window,

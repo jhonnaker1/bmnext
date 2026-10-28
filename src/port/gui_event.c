@@ -31,12 +31,17 @@ int bmnext_menu_requested(void)
 	return r;
 }
 
-/* Keys waiting to go to the NeXT. Its keyboard (kms.c, or adb.c) holds one
-   event until the NeXT reads it, and the next one replaces it: two given
-   in the same 5 ms (a key let go just as the next is pressed, when typing
-   fast) would lose the first, and a key would stay down. So the NeXT gets
-   one each time (200 a second), and the rest wait here. */
+/* Keys waiting to go to the NeXT. Its keyboard (kms.c) holds one event
+   until the NeXT reads it, and the next one replaces it: two given in the
+   same 5 ms (a key let go just as the next is pressed, when typing fast)
+   would lose the first, and a key would stay down. So the NeXT gets one
+   each time (200 a second), and the rest wait here. The Turbos' Apple
+   keyboard (adb.c) holds 16 and drops what comes after, which a burst of
+   keys at that rate overruns (a key lost, or its release, and the key
+   repeats): it gets one every third time (66 a second), still far faster
+   than anyone types. */
 #define KEY_QUEUE 64
+#define ADB_KEY_TICKS 3
 
 static struct {
 	uint8_t usage, pressed;
@@ -70,6 +75,12 @@ static void keyboard(void)
 		bmnext_queue_key(usage, pressed);
 	}
 	if (key_head != key_tail) {
+		static unsigned adb_wait;
+		if (bmnext_keyboard_adb() && adb_wait > 0) {
+			adb_wait--;
+			return;
+		}
+		adb_wait = ADB_KEY_TICKS - 1;
 		bmnext_key(key_queue[key_head % KEY_QUEUE].usage,
 		           key_queue[key_head % KEY_QUEUE].pressed);
 		key_head++;
