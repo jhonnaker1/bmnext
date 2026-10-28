@@ -28,7 +28,11 @@ PORT_SRCS = platform.c menu.c osd.c posix_extra.c $(PREVIOUS_PORT_SRCS) \
 # SLiRP, with the PC's sockets (src/port/previous.mk).
 SLIRP_DEFS = $(PREVIOUS_SLIRP_CFLAGS) \
              $(if $(wildcard /usr/include/sys/filio.h)$(filter Darwin,$(shell uname)),-DHAVE_SYS_FILIO_H)
-SLIRP_FLAGS = $(PREVIOUS_FLAGS) $(SLIRP_DEFS) -I $(PREVIOUS)/slirp
+BMNET_INCLUDE = -include $(ROOT)/src/port/compat/bmnet.h
+SLIRP_FLAGS = $(PREVIOUS_FLAGS) $(SLIRP_DEFS) -I $(PREVIOUS)/slirp $(BMNET_INCLUDE)
+
+# enet_next.c and rpc_sockets.c's socket calls are bmnet's too.
+$(addprefix $(OUT)/port/,$(PREVIOUS_PORT_NET_BMNET:.c=.o)): PORT_EXTRA = $(BMNET_INCLUDE)
 
 OBJS := $(addprefix $(OUT)/previous/,$(PREVIOUS_CORE_SRCS:.c=.o)) \
         $(addprefix $(OUT)/previous/cpu/,$(PREVIOUS_CPU_SRCS:.c=.o)) \
@@ -67,7 +71,7 @@ $(addprefix $(GEN)/,$(filter-out cpustbl.c,$(PREVIOUS_CPUGEN_SRCS))) $(GEN)/cput
 $(OUT)/gen/%.o: $(GEN)/%.c
 	@$(CC) $(PREVIOUS_FLAGS) -c -o $@ $<
 
-$(OUT)/previous/slirp/%.o: $(PREVIOUS)/slirp/%.c
+$(OUT)/previous/slirp/%.o: $(PREVIOUS)/slirp/%.c $(ROOT)/src/port/compat/bmnet.h
 	@mkdir -p $(dir $@)
 	@$(CC) $(SLIRP_FLAGS) -c -o $@ $<
 
@@ -83,7 +87,7 @@ $(OUT)/port/%.o: $(ROOT)/src/port/%.c $(ROOT)/src/port/bmnext.h \
                  $(ROOT)/src/port/osd.h $(ROOT)/src/host.h $(GEN)/cputbl.h
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -std=gnu11 $(PREVIOUS_INCLUDES) -I $(PREVIOUS)/slirp $(SLIRP_DEFS) \
-	      -include $(ROOT)/src/port/compat/previous_prefix.h \
+	      -include $(ROOT)/src/port/compat/previous_prefix.h $(PORT_EXTRA) \
 	      -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -c -o $@ $<
 
 $(OUT)/host_sim.o: host_sim.c live.h $(ROOT)/src/host.h
@@ -93,6 +97,12 @@ $(OUT)/host_sim.o: host_sim.c live.h $(ROOT)/src/host.h
 $(OUT)/live.o: live.c live.h
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -Wall -Wextra -DLIVE_HTML=\"$(abspath live.html)\" -c -o $@ $<
+
+# bmnet's own test (bmnet_test.c): bmnet.c with test versions of the
+# kernel's TCP and UDP. No ROMs needed.
+$(OUT)/bmnet_test: bmnet_test.c $(ROOT)/src/port/bmnet.c $(ROOT)/src/port/compat/bmnet.h $(ROOT)/src/host.h
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -Wall -I $(ROOT)/src/port -o $@ bmnet_test.c $(ROOT)/src/port/bmnet.c -lpthread
 
 clean:
 	rm -rf $(OUT)

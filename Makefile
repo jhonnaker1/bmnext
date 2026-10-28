@@ -37,13 +37,14 @@ PREVIOUS_OBJS := $(addprefix $(BUILD)/previous/,$(PREVIOUS_CORE_SRCS:.c=.o)) \
                  $(addprefix $(BUILD)/previous/softfloat/,$(PREVIOUS_SOFTFLOAT_SRCS:.c=.o)) \
                  $(addprefix $(BUILD)/previous/dsp/,$(PREVIOUS_DSP_SRCS:.c=.o)) \
                  $(addprefix $(BUILD)/previous/debug/,$(PREVIOUS_DEBUG_SRCS:.c=.o)) \
+                 $(addprefix $(BUILD)/previous/slirp/,$(PREVIOUS_SLIRP_SRCS:.c=.o)) \
                  $(addprefix $(BUILD)/zlib/,$(ZLIB_SRCS:.c=.o))
 PREVIOUS_LIB := $(BUILD)/libprevious.a
 
 OBJS = src/main.o src/kernel.o src/logging.o src/options.o \
        src/port/platform.o src/port/menu.o src/port/osd.o src/port/posix_extra.o \
        src/port/fswrap.o \
-       $(addprefix src/port/,$(PREVIOUS_PORT_SRCS:.c=.o) $(PREVIOUS_PORT_NET_NONE:.c=.o)) \
+       $(addprefix src/port/,$(PREVIOUS_PORT_SRCS:.c=.o) $(PREVIOUS_PORT_NET_SLIRP:.c=.o)) \
        src/network.o src/network_time_sync.o \
        src/webui/webui.o src/webui/webui_http.o src/webui/webui_fs.o \
        src/webui/webui_machine.o src/webui/webui_assets.o \
@@ -95,6 +96,14 @@ src/port/%.o src/port/%.d: CFLAGS += $(PREVIOUS_INCLUDES) -std=gnu11 \
 	-include src/port/compat/previous_prefix.h
 $(addprefix src/port/,$(PREVIOUS_PORT_SRCS:.c=.o) platform.o menu.o): $(GEN)/cputbl.h
 
+# The NeXT's network: SLiRP's and Previous's servers' socket calls are
+# bmnet's (src/port/compat/bmnet.h), and the headers newlib for Circle
+# lacks are in src/port/compat/pi/.
+BMNET_FLAGS = -I $(PREVIOUS)/slirp -I src/port/compat/pi $(PREVIOUS_SLIRP_CFLAGS) \
+              -include src/port/compat/bmnet.h
+$(addprefix src/port/,$(PREVIOUS_PORT_NET_BMNET:.c=.o)) \
+$(addprefix src/port/,$(PREVIOUS_PORT_NET_BMNET:.c=.d)): CFLAGS += $(BMNET_FLAGS)
+
 # Previous itself (and zlib): compiled into build/ so third_party stays
 # clean.
 PREVIOUS_FLAGS = $(PREVIOUS_CFLAGS) $(PREVIOUS_INCLUDES) -include src/port/compat/previous_prefix.h
@@ -130,6 +139,12 @@ PREVIOUS_GEN_OBJS := $(addprefix $(GEN)/,$(PREVIOUS_CPUGEN_SRCS:.c=.o) $(PREVIOU
 $(PREVIOUS_GEN_OBJS): $(GEN)/%.o: $(GEN)/%.c
 	@echo "  CC    $<"
 	@$(CC) $(CFLAGS) $(PREVIOUS_FLAGS) -c -o $@ $<
+
+# Before the rule below: make 3.81 (macOS's) takes the first that matches.
+$(BUILD)/previous/slirp/%.o: $(PREVIOUS)/slirp/%.c src/port/compat/bmnet.h
+	@mkdir -p $(dir $@)
+	@echo "  CC    $<"
+	@$(CC) $(CFLAGS) $(PREVIOUS_FLAGS) $(BMNET_FLAGS) -c -o $@ $<
 
 $(BUILD)/previous/%.o: $(PREVIOUS)/%.c $(GEN)/cputbl.h
 	@mkdir -p $(dir $@)

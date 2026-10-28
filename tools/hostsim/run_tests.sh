@@ -4,6 +4,7 @@
 # scripted tests and checks the results.
 #
 #   BMNEXT_ROMS=folder tools/hostsim/run_tests.sh
+#   tools/hostsim/run_tests.sh --bmnet-only    (the network's sockets only)
 #
 # The NeXT's ROMs are not part of BMNeXT: BMNEXT_ROMS is a folder with
 # yours (searched with its subfolders for 64K and 128K .bin files, as
@@ -17,6 +18,16 @@ set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=$HERE/out
 SIM=$HERE/build/bmnext_sim
+
+# The network's sockets (bmnet.c) first: they need no ROMs.
+make -s -C "$HERE" build/bmnet_test || exit 1
+if ! "$HERE/build/bmnet_test"; then
+    echo "bmnet's tests failed." >&2
+    exit 1
+fi
+if [ "${1:-}" = "--bmnet-only" ]; then
+    exit 0
+fi
 
 if [ -z "${BMNEXT_ROMS:-}" ] || [ ! -d "$BMNEXT_ROMS" ]; then
     echo "Set BMNEXT_ROMS to a folder with your NeXT ROMs." >&2
@@ -154,13 +165,16 @@ cp "$OUT/menu/menu.ppm" "$OUT/padmenu/f12menu.ppm"
 same padmenu f12menu menu
 
 echo "The menu's settings"
-# Menu, Machine (two down), Mouse Speed (six down), the last: Fastest.
-run mouse "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 655)$(key $DOWN 660)$(key $DOWN 665)$(key $DOWN 670)$(key $DOWN 675)$(key $DOWN 680)$(key $ENTER 690)$(key $DOWN 720)$(key $DOWN 725)$(key $DOWN 730)$(key $DOWN 735)$(key $ENTER 740)$(key $F12 760)800 quit\n"
+# Menu, Machine (two down), Mouse Speed (seven down), the last: Fastest.
+run mouse "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 650)$(key $DOWN 655)$(key $DOWN 660)$(key $DOWN 665)$(key $DOWN 670)$(key $DOWN 675)$(key $DOWN 680)$(key $ENTER 690)$(key $DOWN 720)$(key $DOWN 725)$(key $DOWN 730)$(key $DOWN 735)$(key $ENTER 740)$(key $F12 760)800 quit\n"
 check_cfg mouse previous.cfg "^fLinScale = 2" "Machine > Mouse Speed saved in previous.cfg"
 # Menu, Machine, Boot (three down), Start From, SCSI Disk (one down).
 run boot_menu "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 630)$(key $DOWN 635)$(key $DOWN 640)$(key $ENTER 650)$(key $ENTER 680)$(key $DOWN 710)$(key $ENTER 720)$(key $F12 760)800 quit\n"
 check_cfg boot_menu previous.cfg "^nBootDevice = 1" "Machine > Boot > Start From saved in previous.cfg"
 check_log boot_menu "boot options reset" "the NeXT restarts for it"
+# Menu, Machine, Ethernet Connected (four down): the NeXT's network on.
+run ethernet "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 630)$(key $DOWN 635)$(key $DOWN 640)$(key $DOWN 645)$(key $ENTER 650)$(key $F12 700)1200 quit\n"
+check_cfg ethernet previous.cfg "^bEthernetConnected = TRUE" "Machine > Ethernet Connected saved in previous.cfg"
 # Menu, Disks, SCSI Disk 0, Create a Blank Hard Disk (two down), 105 MB.
 run blank "" "$(key $F12 600)$(key $ENTER 610)$(key $ENTER 620)$(key $DOWN 650)$(key $DOWN 655)$(key $ENTER 660)$(key $ENTER 690)$(key $F12 910)1200 quit\n"
 if [ "$(wc -c < "$OUT/blank/disks/blank105.sd" 2>/dev/null)" -eq 110100480 ] 2>/dev/null &&

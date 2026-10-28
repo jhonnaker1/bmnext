@@ -31,6 +31,10 @@ and BMC64), with Hatari replaced by Previous (SVN trunk r1858, Previous
   pressed and let go close together (fast typing) were lost, or stayed down
 - The web UI and the live simulator's page in a NeXT style, NeXTSTEP's
   greys, with "NeXT" spelt as it is
+- The NeXT's network (Machine, Ethernet Connected): Previous's SLiRP and
+  its NetInfo, NFS and other servers, on one thread, over BMNeXT's own
+  sockets (127.0.0.1 in memory, the rest through the Pi's network);
+  NeXTSTEP gets 10.0.2.15 and starts with it. Tested in the PC simulator
 - The PC simulator's tests boot each kind of NeXT to its ROM monitor, with
   the user's ROMs (BMNEXT_ROMS)
 

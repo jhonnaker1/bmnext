@@ -26,8 +26,12 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <time.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <utime.h>
 
@@ -130,6 +134,49 @@ int chmod(const char *path, mode_t mode)
 	(void) mode;
 	errno = ENOSYS;
 	return -1;
+}
+
+/* The NeXT's network (SLiRP, Previous's NFS server). An NFS client setting
+   a file's times (lutimes()) is told it can't, as with utime(); SLiRP's
+   terminal redirections (chown(), getuid(), execvp()), which BMNeXT
+   doesn't use, fail. */
+int lutimes(const char *path, const struct timeval times[2])
+{
+	(void) path;
+	(void) times;
+	errno = ENOSYS;
+	return -1;
+}
+
+int chown(const char *path, uid_t owner, gid_t group)
+{
+	(void) path;
+	(void) owner;
+	(void) group;
+	errno = ENOSYS;
+	return -1;
+}
+
+uid_t getuid(void)
+{
+	return 0;
+}
+
+int execvp(const char *file, char *const argv[])
+{
+	(void) file;
+	(void) argv;
+	errno = ENOSYS;
+	return -1;
+}
+
+/* newlib for Circle declares inet_ntoa() (<arpa/inet.h>) but hasn't one. */
+char *inet_ntoa(struct in_addr in)
+{
+	static char text[16];
+	const unsigned char *b = (const unsigned char *) &in.s_addr;
+	snprintf(text, sizeof text, "%u.%u.%u.%u", b[0], b[1], b[2], b[3]);
+	return text;
 }
 
 #elif defined(__APPLE__)

@@ -139,10 +139,15 @@ PREVIOUS_PORT_SRCS = \
 # turns the NeXT's packets into the host's own connections), driven by
 # enet_next.c on the emulator's thread in place of enet_slirp.c's thread,
 # and Previous's own servers' sockets polled by rpc_sockets.c in place of
-# the threads of rpc/csocket.c, udpsocket.c and tcpsocket.c. It needs the
-# host's sockets: the PC test harness has them; the Pi has none yet, and
-# builds nonet.c (no network) instead.
-PREVIOUS_PORT_NET_SLIRP = enet_next.c rpc_sockets.c
+# the threads of rpc/csocket.c, udpsocket.c and tcpsocket.c. Their sockets
+# are bmnet.c's (compat/bmnet.h): 127.0.0.1 in memory, the rest through
+# the kernel's TCP and UDP (src/host.h). nonet.c, no network, in its
+# place builds a NeXT without one.
+PREVIOUS_PORT_NET_SLIRP = enet_next.c rpc_sockets.c bmnet.c
+
+# The files whose socket calls are bmnet's (compat/bmnet.h, -include): all
+# of SLiRP's and the servers', and these two.
+PREVIOUS_PORT_NET_BMNET = enet_next.c rpc_sockets.c
 PREVIOUS_PORT_NET_NONE = nonet.c
 
 # src/slirp/CMakeLists.txt's list, but rpc/csocket.c, udpsocket.c and

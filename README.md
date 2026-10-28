@@ -32,14 +32,16 @@ run on a Raspberry Pi, and its speed there is not known.
 - The MegaPixel Display's 1120x832, in four greys or 4096 colours, pixel for
   pixel on a 1080p display
 - USB keyboards (keys go to the NeXT by where they are) and mice
+- The NeXT's own network (Machine, Ethernet Connected), through the Pi's
+  Ethernet or Wi-Fi: NeXTSTEP gets its address by itself, and reaches what
+  the Pi does (untested on a Pi so far)
 - No shutdown needed: just switch it off
 - A menu (F12) for the disks (blank ones too), the machine, ROM, memory,
   what it starts from, the mouse's speed, video, sound and network
 - Optional Ethernet or Wi-Fi with BMC64's web UI: manage the SD card from a
   browser and start disk images
 
-Not emulated (yet): the NeXT's network (Previous's needs threads and host
-sockets), sound input, and the NeXTdimension board (the NeXTcube's 32-bit
+Not emulated (yet): sound input, and the NeXTdimension board (the NeXTcube's 32-bit
 colour graphics board, with its own Intel i860; planned for later). For
 colour now, choose a NeXTstation Color or NeXTstation Turbo Color in the
 menu (F12, Machine, Machine): 4096 colours on the same 1120x832 display.

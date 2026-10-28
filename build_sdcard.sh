@@ -115,7 +115,7 @@ fi
 # they are not part of BMNeXT).
 if [ "$SKIP_TESTS" -eq 0 ] && [ -z "${BMNEXT_ROMS:-}" ]
 then
-    echo "BMNEXT_ROMS is not set: the PC simulator's tests are skipped." >&2
+    echo "BMNEXT_ROMS is not set: the PC simulator's tests are skipped (but the network's sockets')." >&2
 fi
 if [ "$SKIP_TESTS" -eq 0 ]
 then
@@ -132,6 +132,8 @@ then
     if [ -n "${BMNEXT_ROMS:-}" ]
     then
         run_tests "$SRC_DIR/tools/hostsim/run_tests.sh"
+    else
+        run_tests "$SRC_DIR/tools/hostsim/run_tests.sh" --bmnet-only
     fi
     run_tests "$SRC_DIR/tools/pi4kms/run_tests.sh"
     run_tests "$SRC_DIR/tools/pi4scaler/run_tests.sh"

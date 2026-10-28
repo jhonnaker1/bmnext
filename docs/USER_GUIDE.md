@@ -135,8 +135,7 @@ that can't keep up runs slow, clock and all. *Variable Speed* runs the
 NeXT's clock in real time instead while programs run, as Previous's own
 option does, so it keeps time whatever the Pi manages.
 
-Not emulated: the NeXT's Ethernet (it sees a network with no cable), sound
-input, the laser printer, and the NeXTdimension board (the NeXTcube's
+Not emulated: sound input, the laser printer, and the NeXTdimension board (the NeXTcube's
 32-bit colour graphics board with its own Intel i860, planned for later).
 For colour, choose the NeXTstation Color or NeXTstation Turbo Color: 4096
 colours on the same display, which NeXTSTEP shows in colour as it is.
@@ -148,6 +147,26 @@ own shape (square pixels): on a 1080p display (`config.txt`'s default)
 pixel for pixel, with black bars around it; on a 720p one shrunk to fit.
 The display runs at 60 Hz; the NeXT's own 68 Hz frames are shown as they
 come.
+
+## The NeXT's network
+
+*Machine*, *Ethernet Connected* plugs the NeXT's Ethernet in (it is
+unplugged on a new card, as in Previous). The NeXT is then on a small
+network of its own inside BMNeXT, with a router (SLiRP, as in Previous)
+that takes its connections out through the Pi's own network: turn that on
+too (*Network*, below). NeXTSTEP needs no setting up: it gets its address
+(10.0.2.15), its router (10.0.2.2) and DNS server (10.0.2.3) by itself as
+it starts, and can reach what the Pi can: ftp, telnet, web servers.
+
+The network inside has Previous's own servers too, which NeXTSTEP asks for
+its settings as it starts (NetInfo), and an NFS server sharing the SD card
+with the NeXT (as `nfs`, at 10.0.2.254).
+
+Nothing comes in from outside: the NeXT can connect out, but other
+computers can't connect to it. Ping doesn't work (it needs a kind of
+socket BMNeXT doesn't have); a connection to a server does.
+
+So far this has been tested in the PC simulator, not on a Pi.
 
 ## Networking and the web UI
 

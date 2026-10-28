@@ -388,8 +388,8 @@ extern "C" int host_run_in_background(void (*fn)(void *arg), void *arg) {
 }
 
 //
-// TCP connections for the emulator (host_tcp_*, see host.h; from BMCoco): Circle's
-// sockets. A received segment is kept here until it has all been read
+// TCP connections for the emulator (host_tcp_*, see host.h; from BMCoco, for
+// the NeXT's network here, src/port/bmnet.c): Circle's sockets. A received segment is kept here until it has all been read
 // (CSocket::Receive() drops what doesn't fit the buffer it is given). All
 // on core 1, in the emulator or a background task, which take turns.
 //
@@ -402,7 +402,7 @@ struct TcpConnection {
   unsigned pos, length;
 };
 
-const int kMaxTcpConnections = 4;
+const int kMaxTcpConnections = 16;
 TcpConnection s_tcp[kMaxTcpConnections];
 
 TcpConnection *TcpSlot(int connection) {
@@ -492,6 +492,87 @@ extern "C" void host_tcp_close(int connection) {
     c->socket = 0;
     delete socket;
   }
+}
+
+//
+// UDP for the emulator (host_udp_*, see host.h): Circle's sockets, bound to
+// an ephemeral port, never waiting.
+//
+
+namespace {
+
+const int kMaxUdpSockets = 16;
+CSocket *s_udp[kMaxUdpSockets];
+
+}  // namespace
+
+extern "C" int host_udp_open(void) {
+  if (s_net == 0 || !s_net->IsRunning()) {
+    return -1;
+  }
+  for (int i = 0; i < kMaxUdpSockets; i++) {
+    if (s_udp[i] == 0) {
+      CSocket *socket = new CSocket(s_net, IPPROTO_UDP);
+      if (socket->Bind(0) < 0) {
+        delete socket;
+        return -1;
+      }
+      s_udp[i] = socket;
+      return i;
+    }
+  }
+  return -1;
+}
+
+extern "C" int host_udp_send(int handle, uint32_t ip, unsigned port,
+                             const void *data, unsigned size) {
+  if (handle < 0 || handle >= kMaxUdpSockets || s_udp[handle] == 0) {
+    return -1;
+  }
+  if (size == 0) {
+    return 0;
+  }
+  CIPAddress address;
+  address.Set((u32)ip);  // network byte order, as Circle keeps it
+  int sent = s_udp[handle]->SendTo(data, size, MSG_DONTWAIT, address, (u16)port);
+  return sent < 0 ? -1 : sent;
+}
+
+extern "C" int host_udp_recv(int handle, void *buffer, unsigned size,
+                             uint32_t *ip, unsigned *port) {
+  if (handle < 0 || handle >= kMaxUdpSockets || s_udp[handle] == 0) {
+    return -1;
+  }
+  CIPAddress address;
+  u16 from_port = 0;
+  int got = s_udp[handle]->ReceiveFrom(buffer, size, MSG_DONTWAIT, &address,
+                                       &from_port);
+  if (got <= 0) {
+    return got < 0 ? -1 : 0;
+  }
+  *ip = (u32)address;
+  *port = from_port;
+  return got;
+}
+
+extern "C" void host_udp_close(int handle) {
+  if (handle >= 0 && handle < kMaxUdpSockets && s_udp[handle] != 0) {
+    CSocket *socket = s_udp[handle];
+    s_udp[handle] = 0;
+    delete socket;
+  }
+}
+
+extern "C" int host_dns_server(uint32_t *ip) {
+  if (s_net == 0 || !s_net->IsRunning()) {
+    return 0;
+  }
+  const CIPAddress *dns = s_net->GetConfig()->GetDNSServer();
+  if (dns == 0 || dns->IsNull()) {
+    return 0;
+  }
+  *ip = (u32)*dns;
+  return 1;
 }
 
 //

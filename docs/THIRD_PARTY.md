@@ -16,7 +16,7 @@ Left out of `third_party/previous` (and so of BMNeXT):
 - The NeXTdimension's Intel i860 emulator (`src/dimension/i860*`), by Jason Eckhardt. Previous's copy still carries the old MAME licence (non-commercial use), which is not compatible with the GPL. MAME's own copy of the same emulator has been under the BSD 3-clause licence (GPL compatible) since MAME's relicensing in 2016, so the NeXTdimension can come later, once that is settled (see [UPDATING.md](UPDATING.md)). The rest of `src/dimension/` is there but not built.
 - Blank disk images (`disks/`).
 
-Previous's SLiRP network code (`src/slirp/`, BSD licence) is in the tree but not built.
+The NeXT's network is Previous's SLiRP (`src/slirp/`: Danny Gasparovski's SLiRP, under its own BSD-style licence, with 4.4BSD code from the University of California under the BSD licence, and QEMU's BOOTP and TFTP servers, by Fabrice Bellard and Magnus Damm, under the MIT licence) and Previous's own NFS, NetInfo, portmap, bootparam and DNS servers (`src/slirp/rpc/`, by Simon Schubiger and Andreas Grabher, under the MIT licence). Their notices are in [`sdcard/licenses/slirp.txt`](../sdcard/licenses/slirp.txt).
 
 Its notice is in [`sdcard/licenses/previous.txt`](../sdcard/licenses/previous.txt) and the GNU General Public License version 2 in [`sdcard/licenses/GPL-2.0.txt`](../sdcard/licenses/GPL-2.0.txt).
 

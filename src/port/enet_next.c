@@ -27,7 +27,10 @@
 #include "queue.h"
 #include "timing.h"
 #include "libslirp.h"
+#include "slirp.h"
 #include "rpc/rpc.h"
+
+#include "../host.h"
 
 #include "bmnext.h"
 
@@ -78,6 +81,16 @@ void enet_next_poll(void)
 
 	if (!slirp_started)
 		return;
+	/* SLiRP reads its DNS server from the host's /etc/resolv.conf, which
+	   the Pi hasn't: it is the one the network's DHCP gave, once the
+	   network is up. */
+	if (dns_addr.s_addr == 0 || dns_addr.s_addr == loopback_addr.s_addr) {
+		uint32_t ip;
+		if (host_dns_server(&ip)) {
+			dns_addr.s_addr = ip;
+			printf("BMNeXT: network: DNS %s\n", inet_ntoa(dns_addr));
+		}
+	}
 	FD_ZERO(&rfds);
 	FD_ZERO(&wfds);
 	FD_ZERO(&xfds);

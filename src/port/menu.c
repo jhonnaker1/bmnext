@@ -515,7 +515,7 @@ static int mouse_speed(void)
 
 static void machine_menu(void)
 {
-	enum { S_MACHINE, S_ROM, S_RAM, S_BOOT, S_REALTIME, S_SWAP, S_MOUSE };
+	enum { S_MACHINE, S_ROM, S_RAM, S_BOOT, S_ETHERNET, S_REALTIME, S_SWAP, S_MOUSE };
 	int sel = 0;
 	for (;;) {
 		char ram[16];
@@ -525,6 +525,8 @@ static void machine_menu(void)
 			{"Memory", (snprintf(ram, sizeof ram, "%d MB", memory_mb()), ram),
 			 OSD_ITEM_SUBMENU, S_RAM},
 			{"Boot", NULL, OSD_ITEM_SUBMENU, S_BOOT},
+			{"Ethernet Connected (the NeXT's network)", NULL,
+			 check(ConfigureParams.Ethernet.bEthernetConnected), S_ETHERNET},
 			{"Variable Speed (real time clock)", NULL,
 			 check(ConfigureParams.System.bRealtime), S_REALTIME},
 			{"Swap Command and Alt", NULL, check(ConfigureParams.Keyboard.bSwapCmdAlt),
@@ -590,6 +592,13 @@ static void machine_menu(void)
 			break;
 		case S_BOOT:
 			boot_menu();
+			break;
+		case S_ETHERNET:
+			/* The NeXT on a network of its own, through SLiRP: it reaches
+			   what the Pi does (Network, below in the main menu). */
+			ConfigureParams.Ethernet.bEthernetConnected =
+				!ConfigureParams.Ethernet.bEthernetConnected;
+			bmnext_settings_apply(FALSE);
 			break;
 		case S_MOUSE:
 			i = osd_choose("Mouse Speed", mouse_speeds, mouse_speed());

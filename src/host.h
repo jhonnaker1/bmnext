@@ -125,8 +125,7 @@ void host_network_status(char *text, unsigned size);
    while the emulator waits for the next frame, and whenever it waits
    itself the emulator goes on. Returns 0 if it can't be started. */
 int host_run_in_background(void (*fn)(void *arg), void *arg);
-/* TCP connections (the virtual modem's, src/port/scc_socket_driver.c). On
-   the Pi
+/* TCP connections (the NeXT's network, src/port/bmnet.c). On the Pi
    they are Circle's own sockets, not the C library's: its socket calls
    hold the lock on the table of open files while they wait (connect()
    for seconds or minutes), so that a file opened meanwhile (a ROM, a
@@ -140,6 +139,20 @@ int host_tcp_connect(const char *host, const char *port);
 int host_tcp_recv(int connection, void *buffer, unsigned size);
 int host_tcp_send(int connection, const void *buffer, unsigned size);
 void host_tcp_close(int connection);
+/* UDP (the NeXT's network: DNS, and whatever else the NeXT sends), the
+   same way: host_udp_open() makes a socket (a handle, 0 or more; -1 if
+   it can't); host_udp_send() sends a datagram to IP:PORT (IP in network
+   byte order) and host_udp_recv() takes one that has arrived (its length,
+   0 if none, with where it came from), neither waiting; -1 on an error. */
+int host_udp_open(void);
+int host_udp_send(int handle, uint32_t ip, unsigned port, const void *data,
+                  unsigned size);
+int host_udp_recv(int handle, void *buffer, unsigned size, uint32_t *ip,
+                  unsigned *port);
+void host_udp_close(int handle);
+/* The DNS server the network's DHCP gave (network byte order). Returns 0
+   if there is none (no network). */
+int host_dns_server(uint32_t *ip);
 /* A Wi-Fi network found by host_wifi_scan(). signal is in dBm. */
 struct host_wifi_ap {
 	char ssid[33];
