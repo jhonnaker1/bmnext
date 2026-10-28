@@ -155,20 +155,27 @@ come.
 unplugged on a new card, as in Previous). The NeXT is then on a small
 network of its own inside BMNeXT, with a router (SLiRP, as in Previous)
 that takes its connections out through the Pi's own network: turn that on
-too (*Network*, below). NeXTSTEP needs no setting up: it gets its address
-(10.0.2.15), its router (10.0.2.2) and DNS server (10.0.2.3) by itself as
-it starts, and can reach what the Pi can: ftp, telnet, web servers.
+too (*Network*, below). NeXTSTEP gets its address (10.0.2.15) and its
+router (10.0.2.2) by itself as it starts, and can reach what the Pi can:
+ftp, telnet, web servers.
 
 The network inside has Previous's own servers too, which NeXTSTEP asks for
 its settings as it starts (NetInfo), and an NFS server sharing the SD card
 with the NeXT (as `nfs`, at 10.0.2.254).
 
+For names to resolve, create `/etc/resolv.conf` on the NeXT (as root)
+with this line (10.0.2.3 is the DNS server inside BMNeXT, which passes
+lookups on to your network's):
+
+    nameserver 10.0.2.3
+
+**Ping won't work** to anything outside: SLiRP can't send real pings
+(Previous on a desktop is the same), so only its own addresses, 10.0.2.2
+and 10.0.2.3, answer. Connections to servers (telnet, ftp, the web) work:
+test the network with one of those.
+
 Nothing comes in from outside: the NeXT can connect out, but other
-computers can't connect to it. Ping only reaches SLiRP's own addresses
-(10.0.2.2, 10.0.2.3): SLiRP, in Previous too, can't send real pings, so a
-ping to the Internet gets no answer, while a connection to a server (by
-name or address) works. If names don't resolve (OPENSTEP 4.2 may need
-it), make `/etc/resolv.conf` with the line `nameserver 10.0.2.3`.
+computers can't connect to it.
 
 Tested on a Raspberry Pi 5 with OPENSTEP 4.2.
 

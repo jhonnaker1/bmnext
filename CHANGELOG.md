@@ -79,6 +79,8 @@ and BMC64), with Hatari replaced by Previous (SVN trunk r1858, Previous
     broadcasts give the address family as the C library's AF_INET, which
     is 1 in Circle's, not BSD's 2, so the NeXT's routed ignored them; they
     get 2 on their way to the NeXT now
+- The NeXT needs `/etc/resolv.conf` (`nameserver 10.0.2.3`) for names;
+  ping to the Internet doesn't work (SLiRP's, as in Previous)
 - Disk images are at most 2 GB on the Pi (circle-newlib's lseek())
 
 Tested in the PC simulator, where NeXTSTEP 3.3 starts to its login window,
