@@ -10,10 +10,12 @@ BMNeXT incorporates [Previous](https://previous.alternative-system.com/), the Ne
 
 Previous's 68030 and 68040 CPU core comes from WinUAE and UAE; its DSP56001 emulation from ARAnyM and Hatari (GPL version 2 or later); its floating point emulation from QEMU and the SoftFloat package (under its own notice, in `src/softfloat/`). BMNeXT's menu uses the character set from Previous's font (`src/gui-sdl/font10x16.h`). BMNeXT's front end (`src/port/`) has the same functions as Previous's SDL front end (`src/gui-sdl/`).
 
+The NeXTdimension's Intel i860 emulator (`src/dimension/i860*`) is by Jason Eckhardt (copyright 1995-present), with changes for Previous by Simon Schubiger. Its header releases it "for general non-commercial use under the MAME license", provided its author is listed in the credits, which is done here and in [`sdcard/licenses/i860.txt`](../sdcard/licenses/i860.txt). MAME's own copy of the same emulator by the same author has been under the BSD 3-clause licence since MAME's relicensing in 2016.
+
 Left out of `third_party/previous` (and so of BMNeXT):
 
-- NeXT's ROM images and a ROM disassembly, which Previous's trunk includes (`src/*.BIN`, `src/ROMV66-0001E-02588.ASM`): they are NeXT's (now Apple's) copyright. Users supply their own ROMs.
-- The NeXTdimension's Intel i860 emulator (`src/dimension/i860*`), by Jason Eckhardt. Previous's copy still carries the old MAME licence (non-commercial use), which is not compatible with the GPL. MAME's own copy of the same emulator has been under the BSD 3-clause licence (GPL compatible) since MAME's relicensing in 2016, so the NeXTdimension can come later, once that is settled (see [UPDATING.md](UPDATING.md)). The rest of `src/dimension/` is there but not built.
+- NeXT's ROM images and a ROM disassembly, which Previous's trunk includes (`src/*.BIN`, `src/ROMV66-0001E-02588.ASM`): they are NeXT's (now Apple's) copyright. Users supply their own ROMs, the NeXTdimension's too.
+- Previous's SDL window for the NeXTdimension (`src/dimension/nd_sdl.cpp`, not built: BMNeXT's `src/port/nd_screen.cpp` instead).
 - Blank disk images (`disks/`).
 
 The NeXT's network is Previous's SLiRP (`src/slirp/`: Danny Gasparovski's SLiRP, under its own BSD-style licence, with 4.4BSD code from the University of California under the BSD licence, and QEMU's BOOTP and TFTP servers, by Fabrice Bellard and Magnus Damm, under the MIT licence) and Previous's own NFS, NetInfo, portmap, bootparam and DNS servers (`src/slirp/rpc/`, by Simon Schubiger and Andreas Grabher, under the MIT licence). Their notices are in [`sdcard/licenses/slirp.txt`](../sdcard/licenses/slirp.txt).

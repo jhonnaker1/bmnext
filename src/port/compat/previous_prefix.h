@@ -7,7 +7,8 @@
  * are included here first, so every file builds on its own. And on the
  * Pi, scandir() and alphasort(), which newlib's <dirent.h> doesn't declare,
  * and timegm(), which its <time.h> doesn't (they are posix_extra.c's).
- * And tmpfile() for all builds, which is posix_extra.c's too.
+ * And tmpfile() for all builds, which is posix_extra.c's too. They are C
+ * functions for the C++ files too (the NeXTbus and NeXTdimension).
  *
  * This file is part of BMNeXT, a bare metal NeXT emulator for the
  * Raspberry Pi. See LICENSE for licensing details.
@@ -22,6 +23,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef BMNEXT_HOST_LIBC
 struct dirent;
 int scandir(const char *dirname, struct dirent ***namelist,
@@ -35,5 +40,9 @@ time_t timegm(struct tm *tm);
 /* Temporary files are in memory (posix_extra.c). */
 FILE *bmnext_tmpfile(void);
 #define tmpfile() bmnext_tmpfile()
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BMNEXT_PREVIOUS_PREFIX_H_ */

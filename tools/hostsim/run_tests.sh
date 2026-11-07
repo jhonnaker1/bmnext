@@ -148,6 +148,30 @@ run turbocolor "" '1800 shot a.ppm\n1801 quit\n' "$TURBOCOLOR"
 check_log turbocolor "Loading ROM from .*roms/.*3" "the 3.x ROM"
 monitor turbocolor a
 
+# A NeXTcube (68040) with a NeXTdimension board in slot 2, when its ROM
+# is there (dimension_eeprom.bin or ND_step1_v43.BIN, 128K).
+if ls "$OUT/roms" | grep -Eiq '^nd[_-]|dimension'; then
+    echo "The NeXTdimension board"
+    run dimension "" '1800 shot a.ppm\n1801 quit\n' \
+        "${STATION/nMachineType = 2/nMachineType = 1}[Dimension]\nbEnabled0 = TRUE\n"
+    check_log dimension "NeXTdimension board at slot 2" "the board is in slot 2"
+    check_log dimension "\\[ND\\] Read ROM from .*roms/" "its ROM, found in roms/"
+    check_log dimension "\\[i860\\] \\*+ RESTARTED" "the NeXT starts its i860"
+    # Screen Auto: the NeXT's, as the board's ROM leaves its own plain.
+    monitor dimension a
+    # Screen NeXTdimension: the board's, with no ROM monitor on it.
+    run dimension_screen "nd_screen=dimension" '1800 shot a.ppm\n1801 quit\n' \
+        "${STATION/nMachineType = 2/nMachineType = 1}[Dimension]\nbEnabled0 = TRUE\n"
+    n=$(count dimension_screen a 255 255 255)
+    if [ "$n" -lt 1000 ]; then
+        pass "dimension_screen: the board's screen when chosen"
+    else
+        fail "dimension_screen" "the NeXT's screen in a.ppm ($n white pixels)"
+    fi
+else
+    echo "(no NeXTdimension ROM: its test skipped)"
+fi
+
 echo "Typing at the ROM monitor"
 run typing "" "1200 shot before.ppm\n1210 type help\n$(key $ENTER 1260)1500 shot after.ppm\n1501 quit\n"
 differ typing before after
@@ -173,15 +197,15 @@ cp "$OUT/menu/menu.ppm" "$OUT/padmenu/f12menu.ppm"
 same padmenu f12menu menu
 
 echo "The menu's settings"
-# Menu, Machine (two down), Mouse Speed (seven down), the last: Fastest.
-run mouse "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 650)$(key $DOWN 655)$(key $DOWN 660)$(key $DOWN 665)$(key $DOWN 670)$(key $DOWN 675)$(key $DOWN 680)$(key $ENTER 690)$(key $DOWN 720)$(key $DOWN 725)$(key $DOWN 730)$(key $DOWN 735)$(key $ENTER 740)$(key $F12 760)800 quit\n"
+# Menu, Machine (two down), Mouse Speed (eight down), the last: Fastest.
+run mouse "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 650)$(key $DOWN 655)$(key $DOWN 660)$(key $DOWN 665)$(key $DOWN 670)$(key $DOWN 675)$(key $DOWN 680)$(key $DOWN 685)$(key $ENTER 690)$(key $DOWN 720)$(key $DOWN 725)$(key $DOWN 730)$(key $DOWN 735)$(key $ENTER 740)$(key $F12 760)800 quit\n"
 check_cfg mouse previous.cfg "^fLinScale = 2" "Machine > Mouse Speed saved in previous.cfg"
 # Menu, Machine, Boot (three down), Start From, SCSI Disk (one down).
 run boot_menu "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 630)$(key $DOWN 635)$(key $DOWN 640)$(key $ENTER 650)$(key $ENTER 680)$(key $DOWN 710)$(key $ENTER 720)$(key $F12 760)800 quit\n"
 check_cfg boot_menu previous.cfg "^nBootDevice = 1" "Machine > Boot > Start From saved in previous.cfg"
 check_log boot_menu "boot options reset" "the NeXT restarts for it"
-# Menu, Machine, Ethernet Connected (four down): the NeXT's network on.
-run ethernet "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 630)$(key $DOWN 635)$(key $DOWN 640)$(key $DOWN 645)$(key $ENTER 650)$(key $F12 700)1200 quit\n"
+# Menu, Machine, Ethernet Connected (five down): the NeXT's network on.
+run ethernet "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 630)$(key $DOWN 635)$(key $DOWN 640)$(key $DOWN 645)$(key $DOWN 650)$(key $ENTER 655)$(key $F12 700)1200 quit\n"
 check_cfg ethernet previous.cfg "^bEthernetConnected = TRUE" "Machine > Ethernet Connected saved in previous.cfg"
 # Menu, Disks, SCSI Disk 0, Create a Blank Hard Disk (two down), 105 MB.
 run blank "" "$(key $F12 600)$(key $ENTER 610)$(key $ENTER 620)$(key $DOWN 650)$(key $DOWN 655)$(key $ENTER 660)$(key $ENTER 690)$(key $F12 910)1200 quit\n"

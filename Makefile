@@ -32,6 +32,7 @@ include src/port/previous.mk
 BUILD := build
 GEN := $(BUILD)/gen
 PREVIOUS_OBJS := $(addprefix $(BUILD)/previous/,$(PREVIOUS_CORE_SRCS:.c=.o)) \
+                 $(addprefix $(BUILD)/previous/,$(PREVIOUS_CXX_SRCS:.cpp=.o)) \
                  $(addprefix $(BUILD)/previous/cpu/,$(PREVIOUS_CPU_SRCS:.c=.o)) \
                  $(addprefix $(GEN)/,$(PREVIOUS_CPUGEN_SRCS:.c=.o) $(PREVIOUS_CPUDEFS_SRC:.c=.o)) \
                  $(addprefix $(BUILD)/previous/softfloat/,$(PREVIOUS_SOFTFLOAT_SRCS:.c=.o)) \
@@ -45,6 +46,7 @@ OBJS = src/main.o src/kernel.o src/logging.o src/options.o \
        src/port/platform.o src/port/menu.o src/port/osd.o src/port/posix_extra.o \
        src/port/fswrap.o \
        $(addprefix src/port/,$(PREVIOUS_PORT_SRCS:.c=.o) $(PREVIOUS_PORT_NET_SLIRP:.c=.o)) \
+       $(addprefix src/port/,$(PREVIOUS_PORT_CXX_SRCS:.cpp=.o)) \
        src/network.o src/network_time_sync.o \
        src/webui/webui.o src/webui/webui_http.o src/webui/webui_fs.o \
        src/webui/webui_machine.o src/webui/webui_assets.o \
@@ -139,6 +141,19 @@ PREVIOUS_GEN_OBJS := $(addprefix $(GEN)/,$(PREVIOUS_CPUGEN_SRCS:.c=.o) $(PREVIOU
 $(PREVIOUS_GEN_OBJS): $(GEN)/%.o: $(GEN)/%.c
 	@echo "  CC    $<"
 	@$(CC) $(CFLAGS) $(PREVIOUS_FLAGS) -c -o $@ $<
+
+# The NeXTbus and the NeXTdimension (C++), with Circle's C++ options.
+$(BUILD)/previous/%.o: $(PREVIOUS)/%.cpp $(GEN)/cputbl.h
+	@mkdir -p $(dir $@)
+	@echo "  CPP   $<"
+	@$(CPP) $(filter-out -std=gnu11,$(CPPFLAGS)) $(PREVIOUS_CXXFLAGS) $(PREVIOUS_INCLUDES) \
+	        -include src/port/compat/previous_prefix.h -c -o $@ $<
+
+# BMNeXT's NeXTdimension screen functions (src/port/nd_screen.cpp).
+$(addprefix src/port/,$(PREVIOUS_PORT_CXX_SRCS:.cpp=.o)): src/port/%.o: src/port/%.cpp $(GEN)/cputbl.h
+	@echo "  CPP   $<"
+	@$(CPP) $(filter-out -std=gnu11,$(CPPFLAGS)) $(PREVIOUS_CXXFLAGS) $(PREVIOUS_INCLUDES) \
+	        -include src/port/compat/previous_prefix.h -c -o $@ $<
 
 # Before the rule below: make 3.81 (macOS's) takes the first that matches.
 $(BUILD)/previous/slirp/%.o: $(PREVIOUS)/slirp/%.c src/port/compat/bmnet.h

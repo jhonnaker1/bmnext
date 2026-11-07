@@ -1,0 +1,19 @@
+Intel i860 emulator (the NeXTdimension board's processor)
+==========================================================
+
+Previous's src/dimension/i860*, used unmodified by BMNeXT. Its notice:
+
+    Copyright (C) 1995-present Jason Eckhardt (jle@rice.edu)
+    Released for general non-commercial use under the MAME license
+    with the additional requirement that you are free to use and
+    redistribute this code in modified or unmodified form, provided
+    you list me in the credits.
+    Visit http://mamedev.org for licensing and usage restrictions.
+
+    Changes for previous/NeXTdimension by Simon Schubiger (SC)
+
+Credits: the i860 emulator is by Jason Eckhardt.
+
+MAME's own copy of the same emulator by the same author (MAME's
+src/devices/cpu/i860/) has been under the BSD 3-clause licence since
+MAME's relicensing in 2016.

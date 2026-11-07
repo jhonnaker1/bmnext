@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- The NeXTdimension board on the Raspberry Pi 5: a NeXTcube with NeXT's
+  32-bit colour board in slot 2, with Previous's Intel i860 emulator (by
+  Jason Eckhardt) running the board's ROM and NeXTSTEP's NeXTdimension
+  software. Machine, NeXTdimension Board puts it in; its ROM
+  (ND_step1_v43.BIN or dimension_eeprom.bin) is found in the roms folder.
+- Video, Screen: the NeXT's screen or the board's; Auto (the default)
+  shows the board's once NeXTSTEP draws on it
+- For now the i860 shares the 68040's core (a NeXT with the board runs
+  slower), and the board's colours are shown at 16 bits a pixel
+- Previous's NeXTbus (NextBus.cpp) replaces BMNeXT's nextbus.c
+
 ## 0.1.0 (2026-10-28)
 
 The first BMNeXT: BMAtariST 0.1.0 (itself from BMApple2, BMCoco, BMA800XL

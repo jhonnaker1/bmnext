@@ -55,6 +55,7 @@ REQUIRED_FILES=(
     "licenses/README.txt"
     "licenses/previous.txt"
     "licenses/slirp.txt"
+    "licenses/i860.txt"
     "licenses/zlib.txt"
     "licenses/Apache-2.0.txt"
     "licenses/crt-pi.txt"

@@ -9,6 +9,8 @@ projects; this folder has their notices and licences:
                   SoftFloat notice for its floating point emulation.
   slirp.txt       SLiRP and Previous's network servers, the NeXT's network
                   (BSD and MIT licences).
+  i860.txt        The Intel i860 emulator by Jason Eckhardt, for the
+                  NeXTdimension board.
   zlib.txt        The zlib compression library (zlib licence).
   crt-pi.txt      The crt-pi CRT shader by davej (GPL version 2 or later).
   Mesa-MIT.txt    Material from the Mesa 3D graphics library's Broadcom

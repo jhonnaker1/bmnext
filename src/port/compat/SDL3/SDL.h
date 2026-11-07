@@ -3,9 +3,10 @@
  *
  * Previous's host.h (src/includes/host.h) names its thread, lock and
  * atomic types after SDL's, and includes SDL to get them; nothing else in
- * the parts of Previous BMNeXT builds uses SDL (src/gui-sdl/ is replaced
- * by src/port/). On Circle there is one thread: the types here are plain
- * counters, and host_next.c implements host.h's functions on them.
+ * the parts of Previous BMNeXT builds uses SDL (src/gui-sdl/ and
+ * src/dimension/nd_sdl.cpp are replaced by src/port/). On Circle there is
+ * one thread: the types here are plain counters, and host_next.c
+ * implements host.h's functions on them.
  *
  * This file is part of BMNeXT, a bare metal NeXT emulator for the
  * Raspberry Pi. See LICENSE for licensing details.
@@ -26,6 +27,12 @@ typedef struct SDL_Thread SDL_Thread;
 typedef int (*SDL_ThreadFunction)(void *data);
 typedef struct SDL_Semaphore { uint32_t count; } SDL_Semaphore;
 typedef struct SDL_Mutex { int locked; } SDL_Mutex;
+/* Named by the NeXTdimension's nd_sdl.hpp, which keeps a window of its
+   own; BMNeXT's nd_screen.cpp never makes one (the board's picture is
+   drawn by screen.c). */
+typedef struct SDL_Window SDL_Window;
+typedef struct SDL_Renderer SDL_Renderer;
+typedef struct SDL_Texture SDL_Texture;
 
 #ifdef __cplusplus
 }

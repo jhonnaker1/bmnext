@@ -34,7 +34,8 @@ copy images of yours into the card's `roms` folder (see
 [ROMS.txt](ROMS.txt)). BMNeXT finds them by size: 64K for the NeXT Computer
 (ROM 0.8 to 1.2), 128K for the 68040 machines (ROM 2.x) and the Turbos
 (ROM 3.x, told by a name with "3." in it, as `Rev_3.3_v74.BIN`). Another can
-be chosen in the menu: *Machine*, *ROM*.
+be chosen in the menu: *Machine*, *ROM*. The NeXTdimension board's ROM (see
+below) is found by its name: `ND_step1_v43.BIN` or `dimension_eeprom.bin`.
 
 A new card's NeXT starts in its ROM monitor, the `NeXT>` prompt (`help`
 there lists its commands), until a hard disk is put in SCSI disk 0 (see
@@ -136,10 +137,37 @@ that can't keep up runs slow, clock and all. *Variable Speed* runs the
 NeXT's clock in real time instead while programs run, as Previous's own
 option does, so it keeps time whatever the Pi manages.
 
-Not emulated: sound input, the laser printer, and the NeXTdimension board (the NeXTcube's
-32-bit colour graphics board with its own Intel i860, planned for later).
+Not emulated: sound input and the laser printer.
 For colour, choose the NeXTstation Color or NeXTstation Turbo Color: 4096
-colours on the same display, which NeXTSTEP shows in colour as it is.
+colours on the same display, which NeXTSTEP shows in colour as it is; or
+a NeXTcube with a NeXTdimension board (below).
+
+## The NeXTdimension board
+
+On a Raspberry Pi 5, a NeXTcube (or NeXTcube Turbo) can have a
+NeXTdimension: NeXT's 32-bit colour graphics board, with an Intel i860
+processor of its own, in slot 2. It needs its own ROM in the `roms` folder
+(see ROMs). In the menu: *Machine*, *NeXTdimension Board* puts it in (the
+NeXT restarts).
+
+The board has a screen of its own, which NeXTSTEP (tested with 3.3) uses
+for its desktop. There is one display, so *Video*,
+*Screen* chooses which is shown:
+
+- *Auto* (the default): the NeXT's own screen while it starts (its ROM
+  and NeXTSTEP's start-up messages), then the board's once NeXTSTEP draws
+  there (the login window); the NeXT's again when it restarts
+- *NeXT*: always the NeXT's own MegaPixel Display
+- *NeXTdimension*: always the board's
+
+For now:
+
+- The board's i860 runs on the same Pi core as the NeXT's 68040, so a
+  NeXT with the board runs slower than one without.
+- The board's 24-bit colour is shown at the display's 16 bits a pixel
+  (65536 colours): smooth shades may show bands.
+- Not on the Pi 4: its cores are too slow for the i860 (the menu item is
+  not there).
 
 ## Display
 

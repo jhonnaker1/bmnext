@@ -41,10 +41,13 @@ run on a Raspberry Pi, and its speed there is not known.
 - Optional Ethernet or Wi-Fi with BMC64's web UI: manage the SD card from a
   browser and start disk images
 
-Not emulated (yet): sound input, and the NeXTdimension board (the NeXTcube's 32-bit
-colour graphics board, with its own Intel i860; planned for later). For
-colour now, choose a NeXTstation Color or NeXTstation Turbo Color in the
-menu (F12, Machine, Machine): 4096 colours on the same 1120x832 display.
+- The NeXTdimension board (Raspberry Pi 5): the NeXTcube's 32-bit colour
+  graphics board with its own Intel i860, which NeXTSTEP draws its
+  desktop on (Machine, NeXTdimension Board; Video, Screen)
+
+Not emulated: sound input. For colour without the NeXTdimension, choose a
+NeXTstation Color or NeXTstation Turbo Color in the menu (F12, Machine,
+Machine): 4096 colours on the same 1120x832 display.
 
 ## ROMs and NeXTSTEP
 
@@ -125,8 +128,7 @@ tools/hostsim              Runs the emulator port on a PC for testing
 ```
 
 Previous is used unmodified, minus the files BMNeXT must not ship (NeXT's
-ROMs) or doesn't use yet (the NeXTdimension's i860 emulator): everything
-specific to BMNeXT is in `src/`.
+ROMs): everything specific to BMNeXT is in `src/`.
 Previous's CPU core is generated when it is built, as in Previous's own
 build.
 

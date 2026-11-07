@@ -186,9 +186,11 @@ static void sync_files(void)
 
 /* A NeXT ROM in the card's roms folder (or its root): 64K for the 68030
    NeXT Computer (ROM 0.8 to 1.2), 128K for the 68040 machines (ROM 2.x)
-   and the Turbos (ROM 3.x). Which 128K ROM is which is told by its name
-   (Previous's own are Rev_2.5_v66.BIN and Rev_3.3_v74.BIN). */
-enum { ROM_030, ROM_040, ROM_TURBO, ROM_KINDS };
+   and the Turbos (ROM 3.x), and the NeXTdimension board's, 128K too.
+   Which 128K ROM is which is told by its name (Previous's own are
+   Rev_2.5_v66.BIN, Rev_3.3_v74.BIN and ND_step1_v43.BIN; the board's is
+   also found as dimension_eeprom.bin). */
+enum { ROM_030, ROM_040, ROM_TURBO, ROM_ND, ROM_KINDS };
 
 static int rom_kind(const char *name, long size)
 {
@@ -197,6 +199,11 @@ static int rom_kind(const char *name, long size)
 		return ROM_030;
 	if (size != 128 * 1024)
 		return -1;
+	if (strncasecmp(name, "ND", 2) == 0 && (name[2] == '_' || name[2] == '-'))
+		return ROM_ND;
+	for (p = name; *p; p++)
+		if (strncasecmp(p, "dimension", 9) == 0)
+			return ROM_ND;
 	for (p = name; *p; p++) {
 		if (p[0] == '3' && (p[1] == '.' || p[1] == '_'))
 			return ROM_TURBO;
@@ -266,23 +273,43 @@ void bmnext_find_roms(void)
 	use_rom(ConfigureParams.Rom.szRom030FileName, ROM_030, "68030");
 	use_rom(ConfigureParams.Rom.szRom040FileName, ROM_040, "68040");
 	use_rom(ConfigureParams.Rom.szRomTurboFileName, ROM_TURBO, "Turbo");
+	if (ConfigureParams.Dimension.board[0].bEnabled)
+		use_rom(ConfigureParams.Dimension.board[0].szRomFileName, ROM_ND,
+		        "NeXTdimension");
+}
+
+int bmnext_dimension_rom_found(void)
+{
+	scan_roms();
+	return File_Exists(ConfigureParams.Dimension.board[0].szRomFileName)
+	       || found_rom[ROM_ND][0] != '\0';
 }
 
 /* BMNeXT's choices over previous.cfg's, before Previous starts. */
 static void startup_settings(void)
 {
 	int i;
-	bmnext_find_roms();
-	/* No NeXTdimension (nextbus.c). */
-	for (i = 0; i < ND_MAX_BOARDS; i++)
+	/* At most one NeXTdimension board, in slot 2 (Machine > NeXTdimension
+	   Board), with its i860 on the emulator's core; none on a Pi 4. */
+	for (i = BMNEXT_HAS_DIMENSION ? 1 : 0; i < ND_MAX_BOARDS; i++)
 		ConfigureParams.Dimension.board[i].bEnabled = false;
 	ConfigureParams.Dimension.bI860Thread = false;
+	ConfigureParams.Dimension.nConsoleSlot = 0;
+	bmnext_find_roms();
 	/* Previous's own settings dialog doesn't come up (it's BMNeXT's menu),
 	   nor its statusbar. */
 	ConfigureParams.ConfigDialog.bShowConfigDialogAtStartup = false;
 	ConfigureParams.Screen.bShowStatusbar = false;
 	ConfigureParams.Screen.nMode = SCREEN_SINGLE;
+	/* Which screen is shown is BMNeXT's (screen.c): bmnext.cfg's
+	   nd_screen, auto, next or dimension. */
 	ConfigureParams.Screen.nSingleModeSlot = 0;
+	{
+		const char *which = host_option("nd_screen", "auto");
+		bmnext_set_screen(strcmp(which, "next") == 0 ? BMNEXT_SCREEN_NEXT
+		                  : strcmp(which, "dimension") == 0 ? BMNEXT_SCREEN_DIMENSION
+		                  : BMNEXT_SCREEN_AUTO);
+	}
 	ConfigureParams.Sound.bEnableSound = option_on("sound", TRUE);
 }
 

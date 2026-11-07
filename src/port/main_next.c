@@ -188,7 +188,7 @@ void bmnext_previous_run(const char *config_file, void (*settings)(void), const 
 	snprintf(sConfigFileName, sizeof sConfigFileName, "%s", config_file);
 	Configuration_Load(NULL);
 	/* BMNeXT's choices over the saved ones (platform.c): the ROMs found on
-	   the card, no NeXTdimension. */
+	   the card, at most one NeXTdimension (Pi 5), the screen. */
 	if (settings)
 		settings();
 	Configuration_Apply(true);

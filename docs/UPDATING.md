@@ -8,9 +8,8 @@ repository, so it is not a submodule: `third_party/previous` holds its
 trunk as plain files, at the revision in `third_party/previous/SVN_REVISION`.
 `tools/update_previous.sh` exports it (it needs `svn`) and removes what
 BMNeXT must not ship: NeXT's ROMs and a ROM disassembly (`src/*.BIN`,
-`src/*.ASM`), the NeXTdimension's i860 emulator (`src/dimension/i860*`,
-whose header in Previous still has the old MAME licence) and the empty disk
-images (BMNeXT's menu makes blank disks itself). It is otherwise used unmodified;
+`src/*.ASM`) and the empty disk images (BMNeXT's menu makes blank disks
+itself). It is otherwise used unmodified;
 everything specific to BMNeXT is in `src/port/`:
 
 | File | What it has to do with Previous |
@@ -21,7 +20,7 @@ everything specific to BMNeXT is in `src/port/`:
 | `src/port/compat/SDL3/SDL.h` | The SDL types Previous's `host.h` names its locks and threads after |
 | `src/port/main_next.c` | Previous's `main.c` without SDL or threads: start up, the CPU loop, `Main_EventHandler()` |
 | `src/port/host_next.c` | Previous's `host.h` (`src/gui-sdl/sdlhost.c`) on one thread |
-| `src/port/nextbus.c` | Previous's `NextBus.cpp` without the NeXTdimension, and the NeXTdimension's functions as stubs |
+| `src/port/nd_screen.cpp` | Previous's `src/dimension/nd_sdl.cpp` without a window: `screen.c` shows the NeXTdimension's screen |
 | `src/port/enet_next.c` | `enet_slirp.c` without its thread: SLiRP polled from the emulator's event handler, and its DNS server from the kernel |
 | `src/port/rpc_sockets.c` | `src/slirp/rpc/csocket.c`, `udpsocket.c` and `tcpsocket.c` without their threads: Previous's NFS, NetInfo and other servers' sockets polled |
 | `src/port/bmnet.c`, `compat/bmnet.h` | The BSD sockets SLiRP and the servers use (redirected to `bmnet_*` by macros, `-include`d): 127.0.0.1 in memory, the rest through the kernel's TCP and UDP (`src/host.h`); tested by `tools/hostsim/bmnet_test.c` |
@@ -85,21 +84,18 @@ patch no longer applies, update it from the matching BMC64 patch or by
 hand. `src/fbl.cpp` and `src/vchiqsoundbasedevice.cpp` use Circle's VC4
 addon and may need the same changes BMC64 makes when it updates Circle.
 
-## The NeXTdimension, later
+## The NeXTdimension
 
-The NeXTdimension (`src/dimension/`) is left out for now. To add it:
+Previous's `NextBus.cpp` and `src/dimension/` (C++, `PREVIOUS_CXX_SRCS` in
+`previous.mk`) are built, but `nd_sdl.cpp` (`src/port/nd_screen.cpp`
+instead). The board is for the Pi 5 and the PC simulator only
+(`BMNEXT_HAS_DIMENSION` in `src/port/bmnext.h`): a Pi 5 core takes 25-28 ns
+an i860 cycle, 83-92% of the core at the i860's 33 MHz, with the i860
+mostly in a wait loop. Its i860 runs in Previous's no-thread mode
+(`bI860Thread = false`, on the emulator's core). Still to do:
 
-1. Settle the i860 emulator's licence. Previous's copy
-   (`src/dimension/i860*`) still says "MAME license, non-commercial"; MAME's
-   copy of the same code by the same author (`src/devices/cpu/i860/` in
-   MAME) has been BSD 3-clause since 2016. Asking Previous's maintainers (or
-   Jason Eckhardt) to confirm, and to update Previous's headers, is the
-   clean way; then stop `tools/update_previous.sh` removing those files.
-2. Build `src/dimension/` (C++) in place of `src/port/nextbus.c`'s stubs,
-   with `nd_sdl.cpp` replaced by a BMNeXT version, and the board's 32-bit
-   1120x832 picture copied by `src/port/screen.c`.
-3. Run the i860 first in Previous's no-thread mode (`bI860Thread = false`,
-   on the emulator's core), then on a core of its own (Circle's cores 2 and
-   3 are free), which needs real locks and atomics in `src/port/host_next.c`.
-4. The board needs its own ROM (`ND_step1_v43.BIN`), the user's, like the
-   NeXT's.
+1. The i860 on a core of its own (Circle's cores 2 and 3 are free), which
+   needs real locks and atomics in `src/port/host_next.c`, and skipping the
+   i860's wait loops.
+2. The board's 24-bit colour on a 32-bit display (now RGB565).
+3. The Pi 4, if its cores can keep up with that.

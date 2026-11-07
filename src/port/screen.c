@@ -15,6 +15,16 @@
  * lines that changed since the last copy are converted, which on the
  * NeXT's mostly still desktop is few of them.
  *
+ * A NeXTcube can also have a NeXTdimension board in slot 2, with a screen
+ * of its own: 1120x832 too, 32 bits a pixel (blue, green, red and alpha
+ * bytes), 1152 pixels a line, in the board's video memory
+ * (nd_vram_for_slot()). One of the two screens is shown (Video > Screen):
+ * by default (Auto) the NeXT's until the board's has a picture: the
+ * board's ROM switches its video on with the screen one plain colour,
+ * NeXTSTEP's window server then draws the desktop there; from then on the
+ * board's, until the NeXT restarts. For now its 24-bit colour is
+ * shown as the display's RGB565, like the NeXT's own.
+ *
  * Previous's statusbar is not used: the disk activity is drawn by BMNeXT
  * (statusbar.c), and the menu is BMNeXT's.
  *
@@ -27,6 +37,7 @@
 #include "screen.h"
 #include "statusbar.h"
 #include "video.h"
+#include "dimension.hpp"
 
 #include "../host.h"
 #include "bmnext.h"
@@ -47,10 +58,21 @@ int screen_h = BMNEXT_FB_H;
 static uint16_t *fb;                  /* the display's */
 static int fb_pitch;
 
-/* What the last copy saw of each line of NEXTVideo, to find what changed. */
+/* What the last copy saw of each line (of NEXTVideo or the board's
+   memory), to find what changed. */
 static uint8_t *last_lines;
 static int last_valid;
-static int last_color = -1, last_turbo = -1;
+static int last_color = -1, last_turbo = -1, last_source = -1;
+
+/* The NeXTdimension board's slot (BMNeXT's one board), and its lines. */
+#define ND_BOARD_SLOT ND_SLOT(0)
+#define ND_LINE_PX (BMNEXT_FB_W + 32)
+
+static int nd_screen = BMNEXT_SCREEN_AUTO;
+/* Auto: whether the board's screen has had more than one colour since the
+   NeXT started, and when it was last looked at. */
+static int nd_has_picture;
+static int nd_look;
 
 /* Four monochrome pixels (a byte) at a time, and the colour format. */
 static uint16_t bw_rgb[256][4];
@@ -87,6 +109,53 @@ void bmnext_screen_init(uint16_t *pixels, int pitch_px)
 	fb = pixels;
 	fb_pitch = pitch_px;
 	make_tables();
+}
+
+void bmnext_set_screen(int which)
+{
+	nd_screen = which;
+	last_valid = FALSE;
+}
+
+int bmnext_screen(void)
+{
+	return nd_screen;
+}
+
+/* Whether the board's screen has more than one colour, from a grid of
+   its pixels. */
+static int nd_picture(const uint32_t *vram)
+{
+	int x, y;
+	uint32_t first = vram[0] & 0x00ffffffu;
+	for (y = 0; y < BMNEXT_FB_H; y += BMNEXT_FB_H / 26)
+		for (x = 0; x < BMNEXT_FB_W; x += BMNEXT_FB_W / 35)
+			if ((vram[(size_t) y * ND_LINE_PX + x] & 0x00ffffffu) != first)
+				return TRUE;
+	return FALSE;
+}
+
+/* Whether the board's screen is the one to show. */
+static int show_dimension(void)
+{
+	if (!ConfigureParams.Dimension.board[0].bEnabled
+	    || nd_vram_for_slot(ND_BOARD_SLOT) == NULL)
+		return FALSE;
+	switch (nd_screen) {
+	case BMNEXT_SCREEN_NEXT:
+		return FALSE;
+	case BMNEXT_SCREEN_DIMENSION:
+		return TRUE;
+	default:
+		if (!nd_video_enabled(ND_BOARD_SLOT))
+			return FALSE;
+		/* Looked at twice a second until it has a picture. */
+		if (!nd_has_picture && ++nd_look >= 30) {
+			nd_look = 0;
+			nd_has_picture = nd_picture(nd_vram_for_slot(ND_BOARD_SLOT));
+		}
+		return nd_has_picture;
+	}
 }
 
 /* ---- Previous's screen functions ------------------------------------------ */
@@ -133,6 +202,7 @@ void Screen_CenterCursor(void)
 void Screen_Reset(void)
 {
 	last_valid = FALSE;
+	nd_has_picture = FALSE;
 }
 
 /* ---- To the display ----------------------------------------------------- */
@@ -155,6 +225,25 @@ static void blank(void)
 		memset(fb + (size_t) y * fb_pitch, 0, BMNEXT_FB_W * 2);
 }
 
+/* The board's lines that changed, as RGB565. */
+static int copy_dimension(const uint8_t *vram, int redraw_from)
+{
+	int y, x, copied = FALSE;
+	const int shown = BMNEXT_FB_W * 4;
+	for (y = 0; y < BMNEXT_FB_H; y++) {
+		const uint8_t *src = vram + (size_t) y * ND_LINE_PX * 4;
+		uint8_t *seen = last_lines + (size_t) y * shown;
+		uint16_t *dst = fb + (size_t) y * fb_pitch;
+		if (last_valid && y < redraw_from && memcmp(src, seen, shown) == 0)
+			continue;
+		memcpy(seen, src, shown);
+		for (x = 0; x < BMNEXT_FB_W; x++, src += 4)
+			dst[x] = rgb565(src[2], src[1], src[0]);
+		copied = TRUE;
+	}
+	return copied;
+}
+
 int bmnext_screen_copy(int force)
 {
 	int color = ConfigureParams.System.bColor;
@@ -164,9 +253,38 @@ int bmnext_screen_copy(int force)
 	int stride = turbo ? shown : color ? (BMNEXT_FB_W + 32) * 2 : (BMNEXT_FB_W + 32) / 4;
 	int y, copied = FALSE;
 	int redraw_from;
+	int source = show_dimension();
 
 	if (fb == NULL)
 		return FALSE;
+	if (source != last_source) {
+		last_source = source;
+		last_valid = FALSE;
+		force = TRUE;
+	}
+	if (source) {
+		/* The board's screen: blank until NeXTSTEP switches it on. */
+		if (!nd_video_enabled(ND_BOARD_SLOT)) {
+			if (last_valid || force) {
+				blank();
+				last_valid = FALSE;
+			}
+			return force;
+		}
+		if (last_lines == NULL) {
+			last_lines = malloc((size_t) BMNEXT_FB_W * 4 * BMNEXT_FB_H);
+			if (last_lines == NULL)
+				return FALSE;
+		}
+		if (force)
+			last_valid = FALSE;
+		redraw_from = bottom_dirty ? BMNEXT_FB_H - OVERLAY_LINES : BMNEXT_FB_H;
+		bottom_dirty = FALSE;
+		copied = copy_dimension((const uint8_t *) nd_vram_for_slot(ND_BOARD_SLOT),
+		                        redraw_from);
+		last_valid = TRUE;
+		return copied;
+	}
 	if (NEXTVideo == NULL || !Video_Enabled()) {
 		/* The NeXT has blanked its display (or not started). */
 		if (last_valid || force) {
@@ -176,7 +294,8 @@ int bmnext_screen_copy(int force)
 		return force;
 	}
 	if (last_lines == NULL) {
-		last_lines = malloc((size_t) BMNEXT_FB_W * 2 * BMNEXT_FB_H);
+		/* Big enough for the board's lines too. */
+		last_lines = malloc((size_t) BMNEXT_FB_W * 4 * BMNEXT_FB_H);
 		if (last_lines == NULL)
 			return FALSE;
 	}

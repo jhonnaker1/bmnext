@@ -12,9 +12,6 @@
 #
 #   src/*.BIN, src/*.ASM   NeXT's ROMs (and a ROM disassembly): NeXT's
 #                          copyright; users bring their own
-#   src/dimension/i860*    the NeXTdimension's i860 core, under the MAME
-#                          licence (non-commercial, not GPL compatible);
-#                          BMNeXT leaves the NeXTdimension out
 #   disks/                 blank disk images, not needed
 #
 # Needs svn (brew install subversion).
@@ -34,7 +31,6 @@ svn export -q -r "$REV" "$URL" "$TMP/previous"
 REV=$(svn info -r "$REV" "$URL" | sed -n 's/^Last Changed Rev: //p')
 
 rm -f "$TMP"/previous/src/*.BIN "$TMP"/previous/src/*.ASM
-rm -f "$TMP"/previous/src/dimension/i860*
 rm -rf "$TMP/previous/disks"
 
 rm -rf "$DEST"

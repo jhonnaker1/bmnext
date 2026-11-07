@@ -16,5 +16,9 @@ BMNeXT finds them by their size; a 128K ROM whose name has "3." or "3_"
 in it (or "v74") is taken for a Turbo's. Another can be chosen in the menu
 (F12, Machine, ROM). Any file ending .bin or .rom works.
 
+The NeXTdimension board (NeXTcubes, on a Raspberry Pi 5) has a ROM of its
+own, 128K too: BMNeXT finds it by its name, which starts with "ND_" or has
+"dimension" in it (ND_step1_v43.BIN, dimension_eeprom.bin).
+
 NeXTSTEP and OPENSTEP go on a disk image (a SCSI hard disk, in the disks
 folder): choose it in the menu (F12, Disks, SCSI Disk 0).

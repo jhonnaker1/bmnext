@@ -3,19 +3,19 @@
 #
 # These come unmodified from third_party/previous (Previous's SVN trunk; see
 # third_party/previous/SVN_REVISION). The list matches what Previous's own
-# build (src/CMakeLists.txt and those of src/cpu, src/softfloat, src/dsp and
-# src/debug) compiles, minus:
+# build (src/CMakeLists.txt and those of src/cpu, src/softfloat, src/dsp,
+# src/debug and src/dimension) compiles, minus:
 #
 #   main.c          its main() and SDL main loop; BMNeXT's is main_next.c,
 #                   which runs the CPU on the one thread it has
-#   NextBus.cpp     the NeXTbus (C++), with the NeXTdimension board; BMNeXT's
-#                   nextbus.c has the bus without the board
 #   enet_slirp.c    the network (SLiRP, with threads); see nonet.c
 #   enet_pcap.c     the host's network card (libpcap)
 #   scandir.c       needs dirent's d_reclen, which newlib doesn't have; its
 #                   functions are posix_extra.c's on the Pi
 #   src/gui-sdl/    the SDL front end: BMNeXT's is in src/port/
-#   src/dimension/  the NeXTdimension board (an i860 on a thread of its own)
+#   nd_sdl.cpp      the NeXTdimension's own SDL window: BMNeXT's
+#                   nd_screen.cpp makes none, and screen.c shows the
+#                   board's picture
 #   src/slirp/      the network
 #   src/ditool/     a separate disk image tool
 #
@@ -23,6 +23,8 @@
 # built for the computer doing the build, build68k and gencpu, as Previous's
 # build does (PREVIOUS_CPUGEN_SRCS; see the Makefile). Previous only needs
 # the 68030 and 68040 with their MMUs (gencpu's cpuemu_31.c and cpuemu_32.c).
+#
+# The NeXTbus and the NeXTdimension board are C++ (PREVIOUS_CXX_SRCS).
 #
 # When updating Previous, check its CMakeLists.txt files for added or
 # removed files (see docs/UPDATING.md).
@@ -95,6 +97,20 @@ PREVIOUS_CPU_SRCS = \
 	memory.c \
 	hatari-glue.c
 
+# C++: the NeXTbus, with the NeXTcube's slots, and the NeXTdimension board
+# (src/dimension/CMakeLists.txt's list, but nd_sdl.cpp). i860.cpp includes
+# i860dec.cpp and i860dbg.cpp.
+PREVIOUS_CXX_SRCS = \
+	NextBus.cpp \
+	dimension/dimension.cpp \
+	dimension/nd_mem.cpp \
+	dimension/nd_nbic.cpp \
+	dimension/nd_devs.cpp \
+	dimension/nd_vio.cpp \
+	dimension/nd_rom.cpp \
+	dimension/i860.cpp \
+	dimension/i860dis.cpp
+
 PREVIOUS_SOFTFLOAT_SRCS = \
 	softfloat.c \
 	softfloat_decimal.c \
@@ -131,9 +147,11 @@ PREVIOUS_PORT_SRCS = \
 	host_next.c \
 	keymap.c \
 	main_next.c \
-	nextbus.c \
 	screen.c \
 	statusbar.c
+
+# BMNeXT's C++ one: the NeXTdimension's screen functions (nd_sdl.cpp's).
+PREVIOUS_PORT_CXX_SRCS = nd_screen.cpp
 
 # The NeXT's network: SLiRP (Previous's src/slirp/, a NAT router that
 # turns the NeXT's packets into the host's own connections), driven by
@@ -221,6 +239,7 @@ ZLIB_CFLAGS = -DHAVE_UNISTD_H -DHAVE_STDARG_H -w
 # renamed (host_next.c has it).
 PREVIOUS_CFLAGS = -std=gnu11 -fwrapv -w -Wno-incompatible-pointer-types \
                   -Dhost_sleep_us=host_sleep_us64
+PREVIOUS_CXXFLAGS = -std=gnu++17 -fwrapv -w -Dhost_sleep_us=host_sleep_us64
 
 # Previous's include folders, in its build's order (src/CMakeLists.txt),
 # after src/port (config.h and the SDL stand-in, compat/SDL3/SDL.h).

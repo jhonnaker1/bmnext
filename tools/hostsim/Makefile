@@ -11,6 +11,7 @@ ZLIB := $(ROOT)/third_party/zlib
 include $(ROOT)/src/port/previous.mk
 
 CC ?= cc
+CXX ?= c++
 HOSTCC ?= cc
 OUT := build
 GEN := $(OUT)/gen
@@ -21,6 +22,8 @@ PREVIOUS_INCLUDES = -I $(ROOT)/src/port -I $(ROOT)/src/port/compat \
 CFLAGS = -O2 -g -DBMNEXT_HOST_LIBC
 PREVIOUS_FLAGS = $(CFLAGS) $(PREVIOUS_CFLAGS) $(PREVIOUS_INCLUDES) \
                  -include $(ROOT)/src/port/compat/previous_prefix.h
+PREVIOUS_CXX_FLAGS = $(CFLAGS) $(PREVIOUS_CXXFLAGS) $(PREVIOUS_INCLUDES) \
+                     -include $(ROOT)/src/port/compat/previous_prefix.h
 
 PORT_SRCS = platform.c menu.c osd.c posix_extra.c $(PREVIOUS_PORT_SRCS) \
             $(PREVIOUS_PORT_NET_SLIRP)
@@ -35,6 +38,8 @@ SLIRP_FLAGS = $(PREVIOUS_FLAGS) $(SLIRP_DEFS) -I $(PREVIOUS)/slirp $(BMNET_INCLU
 $(addprefix $(OUT)/port/,$(PREVIOUS_PORT_NET_BMNET:.c=.o)): PORT_EXTRA = $(BMNET_INCLUDE)
 
 OBJS := $(addprefix $(OUT)/previous/,$(PREVIOUS_CORE_SRCS:.c=.o)) \
+        $(addprefix $(OUT)/previous/,$(PREVIOUS_CXX_SRCS:.cpp=.o)) \
+        $(addprefix $(OUT)/port/,$(PREVIOUS_PORT_CXX_SRCS:.cpp=.o)) \
         $(addprefix $(OUT)/previous/cpu/,$(PREVIOUS_CPU_SRCS:.c=.o)) \
         $(addprefix $(OUT)/gen/,$(PREVIOUS_CPUGEN_SRCS:.c=.o) $(PREVIOUS_CPUDEFS_SRC:.c=.o)) \
         $(addprefix $(OUT)/previous/softfloat/,$(PREVIOUS_SOFTFLOAT_SRCS:.c=.o)) \
@@ -47,8 +52,9 @@ OBJS := $(addprefix $(OUT)/previous/,$(PREVIOUS_CORE_SRCS:.c=.o)) \
 
 all: $(OUT)/bmnext_sim
 
+# C++: the NeXTbus and the NeXTdimension.
 $(OUT)/bmnext_sim: $(OBJS)
-	$(CC) -o $@ $(OBJS) -lm
+	$(CXX) -o $@ $(OBJS) -lm
 
 # The CPU core's generated sources, as Previous's build makes them
 # (src/cpu/CMakeLists.txt).
@@ -75,6 +81,10 @@ $(OUT)/previous/slirp/%.o: $(PREVIOUS)/slirp/%.c $(ROOT)/src/port/compat/bmnet.h
 	@mkdir -p $(dir $@)
 	@$(CC) $(SLIRP_FLAGS) -c -o $@ $<
 
+$(OUT)/previous/%.o: $(PREVIOUS)/%.cpp $(GEN)/cputbl.h
+	@mkdir -p $(dir $@)
+	@$(CXX) $(PREVIOUS_CXX_FLAGS) -c -o $@ $<
+
 $(OUT)/previous/%.o: $(PREVIOUS)/%.c $(GEN)/cputbl.h
 	@mkdir -p $(dir $@)
 	@$(CC) $(PREVIOUS_FLAGS) -c -o $@ $<
@@ -89,6 +99,11 @@ $(OUT)/port/%.o: $(ROOT)/src/port/%.c $(ROOT)/src/port/bmnext.h \
 	$(CC) $(CFLAGS) -std=gnu11 $(PREVIOUS_INCLUDES) -I $(PREVIOUS)/slirp $(SLIRP_DEFS) \
 	      -include $(ROOT)/src/port/compat/previous_prefix.h $(PORT_EXTRA) \
 	      -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -c -o $@ $<
+
+$(OUT)/port/%.o: $(ROOT)/src/port/%.cpp $(GEN)/cputbl.h
+	@mkdir -p $(dir $@)
+	$(CXX) $(CFLAGS) $(PREVIOUS_CXXFLAGS) $(PREVIOUS_INCLUDES) \
+	      -include $(ROOT)/src/port/compat/previous_prefix.h -c -o $@ $<
 
 $(OUT)/host_sim.o: host_sim.c live.h $(ROOT)/src/host.h
 	@mkdir -p $(dir $@)

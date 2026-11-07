@@ -166,7 +166,7 @@ with `tools/gen_webui_assets.py` whenever an asset changes.
 | `src/port/audio.c`           | Previous's sound output |
 | `src/port/keymap.c`          | USB keys and mice to the NeXT's (kms.c) or ADB keyboard's codes |
 | `src/port/gui_event.c`       | Keyboard, mouse and gamepads into Previous  |
-| `src/port/nextbus.c`         | The NeXTbus without the NeXTdimension       |
+| `src/port/nd_screen.cpp`     | The NeXTdimension's screen functions (no window of its own) |
 | `src/port/enet_next.c`       | The NeXT's network through SLiRP, on the emulator's thread |
 | `src/port/rpc_sockets.c`     | Previous's NFS, NetInfo and other servers' sockets, polled |
 | `src/port/bmnet.c`           | The sockets SLiRP and the servers use: 127.0.0.1 in memory, the rest through the kernel |

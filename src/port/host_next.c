@@ -4,10 +4,10 @@
  * Replaces src/gui-sdl/sdlhost.c. Previous asks its host for threads,
  * locks, atomics, sleeping and a clock. BMNeXT runs Previous on one core,
  * on one thread (config.h's ENABLE_RENDERING_THREAD runs the CPU on the
- * main thread), and builds none of the parts that start threads: the
- * NeXTdimension's i860 (src/dimension/), the network (src/slirp/,
- * enet_slirp.c, enet_pcap.c) and the SDL front end's repaint thread
- * (src/gui-sdl/). So a lock never has to wait, an atomic is a plain
+ * main thread), and builds none of the parts that start threads (the
+ * network's, enet_slirp.c and enet_pcap.c, and the SDL front end's repaint
+ * thread, src/gui-sdl/); the NeXTdimension's i860 (src/dimension/) runs on
+ * the CPU's thread (platform.c turns Previous's bI860Thread off). So a lock never has to wait, an atomic is a plain
  * variable, and starting a thread is a mistake: it is refused (NULL) and
  * logged.
  *

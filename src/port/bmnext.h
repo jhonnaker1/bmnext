@@ -84,6 +84,16 @@ void bmnext_settings_apply(int force_reset);
 /* Looks for the machine's ROM in the card's roms folder if the one in the
    settings isn't there. */
 void bmnext_find_roms(void);
+/* The NeXTdimension board is for the Pi 5 (its i860 takes most of a
+   core), and the PC simulator. */
+#if defined(BMNEXT_HOST_LIBC) || (defined(RASPPI) && RASPPI >= 5)
+#define BMNEXT_HAS_DIMENSION 1
+#else
+#define BMNEXT_HAS_DIMENSION 0
+#endif
+/* Whether the NeXTdimension board has a ROM (its setting's, or one in
+   roms/). */
+int bmnext_dimension_rom_found(void);
 
 /* ---- main_next.c ---------------------------------------------------------- */
 
@@ -145,6 +155,12 @@ void bmnext_screen_view(int *w, int *h, double *aspect);
 /* Lines at the bottom of the picture the notification and disk light are
    drawn over: they are copied again next time. */
 void bmnext_screen_dirty_bottom(void);
+/* Which screen is shown when the NeXTcube has a NeXTdimension board
+   (Video > Screen, bmnext.cfg's screen setting): the board's whenever its
+   video is on (AUTO), the NeXT's, or the board's. */
+enum { BMNEXT_SCREEN_AUTO, BMNEXT_SCREEN_NEXT, BMNEXT_SCREEN_DIMENSION };
+void bmnext_set_screen(int which);
+int bmnext_screen(void);
 
 /* ---- keymap.c ---------------------------------------------------------------- */
 

@@ -515,7 +515,8 @@ static int mouse_speed(void)
 
 static void machine_menu(void)
 {
-	enum { S_MACHINE, S_ROM, S_RAM, S_BOOT, S_ETHERNET, S_REALTIME, S_SWAP, S_MOUSE };
+	enum { S_MACHINE, S_ROM, S_RAM, S_BOOT, S_DIMENSION, S_ETHERNET, S_REALTIME, S_SWAP,
+	       S_MOUSE };
 	int sel = 0;
 	for (;;) {
 		char ram[16];
@@ -525,6 +526,8 @@ static void machine_menu(void)
 			{"Memory", (snprintf(ram, sizeof ram, "%d MB", memory_mb()), ram),
 			 OSD_ITEM_SUBMENU, S_RAM},
 			{"Boot", NULL, OSD_ITEM_SUBMENU, S_BOOT},
+			{"NeXTdimension Board (NeXTcubes)", NULL,
+			 check(ConfigureParams.Dimension.board[0].bEnabled), S_DIMENSION},
 			{"Ethernet Connected (the NeXT's network)", NULL,
 			 check(ConfigureParams.Ethernet.bEthernetConnected), S_ETHERNET},
 			{"Variable Speed (real time clock)", NULL,
@@ -538,8 +541,16 @@ static void machine_menu(void)
 		};
 		const char *names[N_MACHINES + 1];
 		char path[FILENAME_MAX];
-		int chosen, i;
-		chosen = osd_menu("Machine", items, sizeof items / sizeof items[0], &sel);
+		int chosen, i, n_items = sizeof items / sizeof items[0];
+		if (!BMNEXT_HAS_DIMENSION) {
+			/* The NeXTdimension is for the Pi 5. */
+			for (i = 0; i < n_items && items[i].id != S_DIMENSION; i++)
+				;
+			for (; i < n_items - 1; i++)
+				items[i] = items[i + 1];
+			n_items--;
+		}
+		chosen = osd_menu("Machine", items, n_items, &sel);
 		bmnext_settings_begin();
 		switch (chosen) {
 		case S_MACHINE:
@@ -593,6 +604,27 @@ static void machine_menu(void)
 		case S_BOOT:
 			boot_menu();
 			break;
+		case S_DIMENSION: {
+			/* The NeXTcube's 32-bit colour board, in slot 2: its i860
+			   runs on the emulator's core, and Video > Screen chooses
+			   which screen is shown. */
+			NDBOARD *board = &ConfigureParams.Dimension.board[0];
+			if (!board->bEnabled) {
+				if (ConfigureParams.System.nMachineType == NEXT_STATION) {
+					osd_message("Only a NeXTcube has slots for a NeXTdimension board.", TRUE);
+					break;
+				}
+				if (!bmnext_dimension_rom_found()) {
+					osd_message("No NeXTdimension ROM in the roms folder "
+					            "(see roms/README.txt).", TRUE);
+					break;
+				}
+			}
+			board->bEnabled = !board->bEnabled;
+			bmnext_find_roms();
+			bmnext_settings_apply(TRUE);
+			break;
+		}
 		case S_ETHERNET:
 			/* The NeXT on a network of its own, through SLiRP: it reaches
 			   what the Pi does (Network, below in the main menu). */
@@ -651,7 +683,9 @@ static void choose_screen_size(void)
 static void video_menu(void)
 {
 	enum { V_SIZE, V_RESOLUTION, V_SHADER, V_CURVATURE, V_SMOOTH,
-	       V_ACTIVITY };
+	       V_ACTIVITY, V_SCREEN };
+	static const char *const screens[] = {"Auto", "NeXT", "NeXTdimension", NULL};
+	static const char *const screen_settings[] = {"auto", "next", "dimension"};
 	/* The Pi 5 only: its firmware ignores hdmi_mode (from BMA800XL). */
 	static const char *const resolutions[] = {"auto", "1920x1080", "1280x720", NULL};
 	static const char *const resolution_names[] = {"Auto", "1920x1080", "1280x720", NULL};
@@ -671,6 +705,7 @@ static void video_menu(void)
 			{"CRT Curvature (reboot)", NULL, check(setting_on("crt_curvature", FALSE)), V_CURVATURE},
 			{"Smooth Scaling (reboot)", NULL, check(setting_on("smooth", FALSE)), V_SMOOTH},
 			{"Show Disk Activity", NULL, check(bmnext_disk_activity()), V_ACTIVITY},
+			{"Screen", screens[bmnext_screen()], OSD_ITEM_SUBMENU, V_SCREEN},
 			{"", NULL, OSD_ITEM_LABEL, -1},
 			{"If your TV cuts off the edges, make", NULL, OSD_ITEM_LABEL, -1},
 			{"the Screen Size smaller.", NULL, OSD_ITEM_LABEL, -1},
@@ -683,6 +718,14 @@ static void video_menu(void)
 				items[k] = items[k + 1];
 			n_items--;
 		}
+		if (!ConfigureParams.Dimension.board[0].bEnabled) {
+			/* Screen is for a NeXTcube with a NeXTdimension board. */
+			for (k = 0; k < n_items && items[k].id != V_SCREEN; k++)
+				;
+			for (; k < n_items - 1; k++)
+				items[k] = items[k + 1];
+			n_items--;
+		}
 		chosen = osd_menu("Video", items, n_items, &sel);
 		switch (chosen) {
 		case V_SIZE:
@@ -691,6 +734,14 @@ static void video_menu(void)
 		case V_ACTIVITY:
 			save_setting("disk_activity", bmnext_disk_activity() ? "0" : "1");
 			bmnext_set_disk_activity(!bmnext_disk_activity());
+			break;
+		case V_SCREEN:
+			/* Auto: the board's whenever NeXTSTEP has its video on. */
+			i = osd_choose("Screen", screens, bmnext_screen());
+			if (i >= 0) {
+				save_setting("nd_screen", screen_settings[i]);
+				bmnext_set_screen(i);
+			}
 			break;
 		case V_RESOLUTION:
 			i = osd_choose("Resolution", resolution_names, res_index);
