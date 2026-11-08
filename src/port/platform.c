@@ -499,10 +499,17 @@ static void report_speed(double now)
 		double tasks, log, picture;
 		host_video_times(&tasks, &log, &picture);
 		if (n < (int) sizeof text && span > 0)
-			snprintf(text + n, sizeof text - n,
-			         " (frames: tasks %d%% log %d%% picture %d%%)",
-			         (int) (tasks * 100.0 / span + 0.5), (int) (log * 100.0 / span + 0.5),
-			         (int) (picture * 100.0 / span + 0.5));
+			n += snprintf(text + n, sizeof text - n,
+			              " (frames: tasks %d%% log %d%% picture %d%%)",
+			              (int) (tasks * 100.0 / span + 0.5), (int) (log * 100.0 / span + 0.5),
+			              (int) (picture * 100.0 / span + 0.5));
+	}
+	{
+		/* The NeXTdimension's i860 on the helper core: 33 MHz flat out,
+		   much less while it waits (nd_i860.cpp). */
+		long long cycles = bmnext_i860_cycles();
+		if (cycles > 0 && n < (int) sizeof text && span > 0)
+			snprintf(text + n, sizeof text - n, "; i860 %.1f MHz", cycles / span / 1e6);
 	}
 	printf("%s\n", text);
 	speed_since = now;

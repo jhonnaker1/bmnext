@@ -84,9 +84,12 @@ static void helper_task(void *unused)
 	helper.func(helper.data);
 }
 
+/* nd_i860.cpp's i860 thread, which skips its wait loops, for Previous's. */
+thread_func_t bmnext_i860_thread(thread_func_t func);
+
 thread_t *host_thread_create(thread_func_t func, const char *name, void *data)
 {
-	helper.func = func;
+	helper.func = bmnext_i860_thread(func);
 	helper.data = data;
 	if (host_helper_start(helper_task, NULL) != 0) {
 		printf("BMNeXT: Previous asked for a thread (%s): not available\n",

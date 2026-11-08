@@ -99,10 +99,16 @@ simulator with `BMNEXT_SIM_HELPER=1`), with real atomics and locks. The
 helper must not use Circle's scheduler: it sleeps on the timer, and its
 log lines (`Log_Printf` in the C++ files, through
 `compat/previous_prefix.h`) are queued for core 1 to print. Without a
-helper the i860 runs on the emulator's core. Still to do:
+helper the i860 runs on the emulator's core.
 
-1. Skipping the i860's wait loops (it spends nearly all its time in one
-   or two instructions waiting for the host), which would leave core 3
-   mostly idle.
-2. The board's 24-bit colour on a 32-bit display (now RGB565).
-3. The Pi 4, if its cores can keep up.
+On the helper the thread is BMNeXT's (`src/port/nd_i860.cpp`, started by
+`host_thread_create()` in place of Previous's `i860_cpu_device::run()`):
+the same loop, but when the i860 spins (its program counter within 32
+bytes and its integer registers unchanged for 2048 cycles, as in the ROM's
+and NeXTSTEP's wait loops), it runs 16 cycles every 100 microseconds. It
+reads the i860's private program counter and registers (that file opens
+Previous's classes with `#define private public`): check it when updating
+Previous's `i860.hpp`. Still to do:
+
+1. The board's 24-bit colour on a 32-bit display (now RGB565).
+2. The Pi 4, if its cores can keep up.

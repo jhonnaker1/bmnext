@@ -150,8 +150,9 @@ PREVIOUS_PORT_SRCS = \
 	screen.c \
 	statusbar.c
 
-# BMNeXT's C++ one: the NeXTdimension's screen functions (nd_sdl.cpp's).
-PREVIOUS_PORT_CXX_SRCS = nd_screen.cpp
+# BMNeXT's C++ ones: the NeXTdimension's screen functions (nd_sdl.cpp's),
+# and its i860 thread, which skips the i860's wait loops.
+PREVIOUS_PORT_CXX_SRCS = nd_screen.cpp nd_i860.cpp
 
 # The NeXT's network: SLiRP (Previous's src/slirp/, a NAT router that
 # turns the NeXT's packets into the host's own connections), driven by

@@ -12,6 +12,9 @@
 - The i860 runs on a core of its own (the Pi 5's core 3, the helper
   core), as Previous runs it on a thread of its own; the board's colours
   are shown at 16 bits a pixel for now
+- The i860's wait loops are skipped: while it only waits for the NeXT, it
+  runs 16 cycles every 100 microseconds, so its core is mostly idle (the
+  log's speed lines show the i860's MHz)
 - Previous's NeXTbus (NextBus.cpp) replaces BMNeXT's nextbus.c
 
 ## 0.1.0 (2026-10-28)

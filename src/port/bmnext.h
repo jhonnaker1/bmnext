@@ -91,6 +91,9 @@ void bmnext_find_roms(void);
 #else
 #define BMNEXT_HAS_DIMENSION 0
 #endif
+/* The cycles the NeXTdimension's i860 ran on the helper core since the
+   last call (nd_i860.cpp). */
+long long bmnext_i860_cycles(void);
 /* Whether the NeXTdimension board has a ROM (its setting's, or one in
    roms/). */
 int bmnext_dimension_rom_found(void);
