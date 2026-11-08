@@ -148,8 +148,14 @@ void bmnext_set_volume(int volume);
 #define BMNEXT_FB_W 1120
 #define BMNEXT_FB_H 832
 
-/* Sets up the frame buffer: RGB565, BMNEXT_FB_W x BMNEXT_FB_H. */
-void bmnext_screen_init(uint16_t *pixels, int pitch_px);
+/* Sets up the frame buffer: RGB565, BMNEXT_FB_W x BMNEXT_FB_H; and the
+   32-bit one for the NeXTdimension's screen, where the display has one
+   (PIXELS32 NULL if not). */
+void bmnext_screen_init(uint16_t *pixels, int pitch_px, uint32_t *pixels32,
+                        int pitch32_px);
+/* The frame buffer bmnext_screen_copy() copied to last, to draw over:
+   its pitch in pixels, and BITS 16 (RGB565) or 32. */
+void *bmnext_screen_pixels(int *pitch_px, int *bits);
 /* Copies the NeXT's display to the frame buffer, what changed of it (or
    all of it, FORCE). Returns TRUE if anything was copied. */
 int bmnext_screen_copy(int force);
@@ -190,6 +196,6 @@ void bmnext_drop_queued_keys(void);
 /* ---- statusbar.c --------------------------------------------------------- */
 
 /* Draws the disk activity line over the picture. */
-void bmnext_draw_disk_activity(uint16_t *fb, int pitch_px, int w, int h);
+void bmnext_draw_disk_activity(void *fb, int pitch_px, int bits, int w, int h);
 
 #endif /* BMNEXT_PORT_H_ */

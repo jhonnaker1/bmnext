@@ -93,6 +93,8 @@ public:
 
   // Called (through host.h) from the emulator on core 1.
   int VideoInit(int width, int height, uint16_t **pixels, int *pitch);
+  uint32_t *VideoInit32(int *pitch);
+  int VideoDepth(int bits);
   void DisplaySize(int *width, int *height);
   bool DisplayMatchRate(double fps);
   bool DisplayResolutionChoice(void);

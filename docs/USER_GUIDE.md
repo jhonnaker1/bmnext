@@ -166,8 +166,9 @@ For now:
   the real board's 33 MHz. While the i860 only waits for work, BMNeXT
   runs it just enough to notice the work coming, so that core is mostly
   idle; the log's speed lines show how many MHz it really ran.
-- The board's 24-bit colour is shown at the display's 16 bits a pixel
-  (65536 colours): smooth shades may show bands.
+- The board's screen is shown in its full 24-bit colour, except with
+  the CRT look (`crt_shader=1`), which draws in 16 bits a pixel (65536
+  colours): smooth shades may show bands then.
 - Not on the Pi 4: its cores are too slow for the i860 (the menu item is
   not there).
 

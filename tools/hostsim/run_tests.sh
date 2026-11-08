@@ -183,6 +183,17 @@ if ls "$OUT/roms" | grep -Eiq '^nd[_-]|dimension'; then
     else
         fail "dimension_screen" "the NeXT's screen in a.ppm ($n white pixels)"
     fi
+    # In 24-bit colour, on the 32-bit frame buffer.
+    check_log dimension_screen "showing the 32-bit frame buffer" "the board's screen in 32 bits"
+    # On a display without one, in RGB565.
+    BMNEXT_SIM_NO32=1 run dimension_16 "nd_screen=dimension" '1800 shot a.ppm\n1801 quit\n' \
+        "${STATION/nMachineType = 2/nMachineType = 1}[Dimension]\nbEnabled0 = TRUE\n"
+    n=$(count dimension_16 a 255 255 255)
+    if [ "$n" -lt 1000 ] && ! grep -q "32-bit frame buffer" "$OUT/dimension_16/log.txt"; then
+        pass "dimension_16: the board's screen in RGB565 without a 32-bit frame buffer"
+    else
+        fail "dimension_16" "not the board's screen in RGB565 ($n white pixels)"
+    fi
 else
     echo "(no NeXTdimension ROM: its test skipped)"
 fi

@@ -95,14 +95,14 @@ int osd_browse_folder(const char *title, char *dir, size_t dir_size,
 void osd_notify(const char *text);
 /* Called by the video output each frame: draws the notification, if any. */
 /* Returns TRUE if it drew (or has just stopped drawing) over the picture. */
-int osd_draw_notification(uint16_t *fb, int pitch_px, int w, int h);
+int osd_draw_notification(void *fb, int pitch_px, int bits, int w, int h);
 
 /* The lines at the bottom of the picture the notification and the disk
    activity line are drawn in. */
 #define OSD_OVERLAY_LINES 28
 
 /* The disk activity line (see platform.c), drawn on the picture. */
-void osd_draw_disk_status(uint16_t *fb, int pitch_px, int w, int h,
+void osd_draw_disk_status(void *fb, int pitch_px, int bits, int w, int h,
                           const char *text, int light, int error);
 
 #endif /* BMNEXT_OSD_H_ */

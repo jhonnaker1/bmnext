@@ -879,6 +879,10 @@ int CKernel::VideoInit(int width, int height, uint16_t **pixels, int *pitch) {
   return ret;
 }
 
+uint32_t *CKernel::VideoInit32(int *pitch) { return mVideo.Allocate32(pitch); }
+
+int CKernel::VideoDepth(int bits) { return mVideo.SetDepth(bits); }
+
 void CKernel::VideoSetView(int x, int y, int w, int h, double aspect) {
   Core1Beat("laying out the picture");
   mVideo.SetView(x, y, w, h, aspect, mOptions.GetDouble("scale", 1.0));
@@ -975,6 +979,17 @@ int CKernel::VideoInit(int width, int height, uint16_t **pixels, int *pitch) {
         false /* sharper */, mOptions.GetBool("smooth", false));
   }
   return 0;
+}
+
+// The firmware's framebuffer here is RGB565 only.
+uint32_t *CKernel::VideoInit32(int *pitch) {
+  (void)pitch;
+  return 0;
+}
+
+int CKernel::VideoDepth(int bits) {
+  (void)bits;
+  return 16;
 }
 
 void CKernel::VideoSetView(int x, int y, int w, int h, double aspect) {
@@ -1267,6 +1282,10 @@ void host_yield(void) { CScheduler::Get()->Yield(); }
 int host_video_init(int width, int height, uint16_t **pixels, int *pitch) {
   return CKernel::Get()->VideoInit(width, height, pixels, pitch);
 }
+
+uint32_t *host_video_init32(int *pitch) { return CKernel::Get()->VideoInit32(pitch); }
+
+int host_video_depth(int bits) { return CKernel::Get()->VideoDepth(bits); }
 
 void host_video_set_view(int x, int y, int w, int h, double aspect) {
   CKernel::Get()->VideoSetView(x, y, w, h, aspect);

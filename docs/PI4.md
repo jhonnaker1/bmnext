@@ -9,7 +9,9 @@ Pi 4 support comes from [BMA800XL](https://github.com/aminch/bma800xl)
 BMA800XL's picture is 8-bit with a palette; BMCoco's and BMNeXT's are
 RGB565 (BMNeXT converts the NeXT's 2-bit greys or 16-bit colour as it copies it), so the
 display code (`src/av/video.cpp`, `src/av/scaler.cpp`) takes RGB565
-instead. The rest is BMA800XL's.
+instead. The NeXTdimension's screen can also come in 32 bits a pixel
+(`Pi4Video::Allocate32()`), copied as it is unless the CRT shader
+filters it. The rest is BMA800XL's.
 
 ## How it differs from the Pi 2 and 3
 

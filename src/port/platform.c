@@ -98,6 +98,9 @@ static void apply_view(void)
 void bmnext_osd_view(int on)
 {
 	osd_view = on;
+	/* The menu is drawn in RGB565. */
+	if (on)
+		host_video_depth(16);
 	apply_view();
 	if (!on)
 		bmnext_screen_copy(TRUE);
@@ -462,11 +465,14 @@ static double last_second;
 
 static void show_frame(void)
 {
+	void *pixels;
+	int pitch, bits;
 	if (osd_view)
 		return;
 	bmnext_screen_copy(FALSE);
-	bmnext_draw_disk_activity(fb_pixels, fb_pitch_px, BMNEXT_FB_W, BMNEXT_FB_H);
-	if (osd_draw_notification(fb_pixels, fb_pitch_px, BMNEXT_FB_W, BMNEXT_FB_H))
+	pixels = bmnext_screen_pixels(&pitch, &bits);
+	bmnext_draw_disk_activity(pixels, pitch, bits, BMNEXT_FB_W, BMNEXT_FB_H);
+	if (osd_draw_notification(pixels, pitch, bits, BMNEXT_FB_W, BMNEXT_FB_H))
 		bmnext_screen_dirty_bottom();
 	host_video_present(FALSE);
 }
@@ -602,7 +608,8 @@ void bmnext_main(void)
 {
 	static char previous_cfg[FILENAME_MAX];
 	const char *why = "Previous stopped";
-	int pitch;
+	int pitch, pitch32 = 0;
+	uint32_t *pixels32 = NULL;
 
 	if (host_video_init(BMNEXT_FB_W, BMNEXT_FB_H, &fb_pixels, &pitch) != 0) {
 		printf("BMNeXT: no display\n");
@@ -611,7 +618,10 @@ void bmnext_main(void)
 	}
 	fb_pitch_px = pitch / 2;
 	clear_framebuffer();
-	bmnext_screen_init(fb_pixels, fb_pitch_px);
+	/* The NeXTdimension's 24-bit colour, where the display can show it. */
+	if (BMNEXT_HAS_DIMENSION)
+		pixels32 = host_video_init32(&pitch32);
+	bmnext_screen_init(fb_pixels, fb_pitch_px, pixels32, pitch32 / 4);
 	apply_view();
 	host_display_match_rate(60.0);
 	measure_refresh_rate();

@@ -56,8 +56,24 @@ static uint16_t *osd_fb(int *pitch)
 	return bmnext_framebuffer(pitch);
 }
 
+/* An RGB565 colour as a 32-bit pixel (0x00RRGGBB). */
+static uint32_t rgb32(uint16_t c)
+{
+	uint32_t r = (c >> 11) & 0x1f, g = (c >> 5) & 0x3f, b = c & 0x1f;
+	return ((r << 3 | r >> 2) << 16) | ((g << 2 | g >> 4) << 8) | (b << 3 | b >> 2);
+}
+
+/* A pixel of FB (BITS 16 for RGB565, 32 for 0x00RRGGBB). */
+static void put_pixel(void *fb, int pitch, int bits, int x, int y, uint16_t c)
+{
+	if (bits == 32)
+		((uint32_t *) fb)[(size_t) y * pitch + x] = rgb32(c);
+	else
+		((uint16_t *) fb)[(size_t) y * pitch + x] = c;
+}
+
 /* A glyph from Previous's font. */
-static void draw_char_at(uint16_t *fb, int pitch, int x, int y, unsigned char c,
+static void draw_char_at(void *fb, int pitch, int bits, int x, int y, unsigned char c,
                          uint16_t fg, uint16_t bg)
 {
 	int row, col, gx, gy;
@@ -66,11 +82,11 @@ static void draw_char_at(uint16_t *fb, int pitch, int x, int y, unsigned char c,
 	gx = (c % 16) * CELL_W;
 	gy = (c / 16) * CELL_H;
 	for (row = 0; row < CELL_H; row++) {
-		uint16_t *p = fb + (y + row) * pitch + x;
 		const uint8_t *line = font10x16_bits + (gy + row) * (font10x16_width / 8);
 		for (col = 0; col < CELL_W; col++) {
 			int bit = gx + col;
-			p[col] = (line[bit >> 3] & (1 << (bit & 7))) ? fg : bg;
+			put_pixel(fb, pitch, bits, x + col, y + row,
+			          (line[bit >> 3] & (1 << (bit & 7))) ? fg : bg);
 		}
 	}
 }
@@ -81,7 +97,7 @@ static void put_text(int col, int row, const char *text, uint16_t fg, uint16_t b
 	uint16_t *fb = osd_fb(&pitch);
 	for (; *text != '\0' && col < OSD_COLS; text++, col++) {
 		if (col >= 0)
-			draw_char_at(fb, pitch, col * CELL_W, row * CELL_H,
+			draw_char_at(fb, pitch, 16, col * CELL_W, row * CELL_H,
 			             (unsigned char) *text, fg, bg);
 	}
 }
@@ -879,7 +895,7 @@ void osd_notify(const char *text)
 	notify_until = host_time() + 3.0;
 }
 
-int osd_draw_notification(uint16_t *fb, int pitch_px, int w, int h)
+int osd_draw_notification(void *fb, int pitch_px, int bits, int w, int h)
 {
 	int len, x, y, i;
 	if (notify_text[0] == '\0')
@@ -895,30 +911,30 @@ int osd_draw_notification(uint16_t *fb, int pitch_px, int w, int h)
 	y = h - CELL_H - 4;
 	if (x < 0 || y < 0)
 		return FALSE;
-	draw_char_at(fb, pitch_px, x, y, ' ', C_BLACK, C_GREEN);
+	draw_char_at(fb, pitch_px, bits, x, y, ' ', C_BLACK, C_GREEN);
 	for (i = 0; i < len - 2; i++)
-		draw_char_at(fb, pitch_px, x + (i + 1) * CELL_W, y,
+		draw_char_at(fb, pitch_px, bits, x + (i + 1) * CELL_W, y,
 		             (unsigned char) notify_text[i], C_BLACK, C_GREEN);
-	draw_char_at(fb, pitch_px, x + (len - 1) * CELL_W, y, ' ', C_BLACK, C_GREEN);
+	draw_char_at(fb, pitch_px, bits, x + (len - 1) * CELL_W, y, ' ', C_BLACK, C_GREEN);
 	return TRUE;
 }
 
 /* The disk activity line at the bottom left (platform.c): a light (lit
    while the disk turns) and TEXT, red for an error. From BMCoco. */
-void osd_draw_disk_status(uint16_t *fb, int pitch_px, int w, int h,
+void osd_draw_disk_status(void *fb, int pitch_px, int bits, int w, int h,
                           const char *text, int light, int error)
 {
 	int len = (int) strlen(text), x = 8, y = h - CELL_H - 4, row, col, i;
 	uint16_t lamp = light ? C_RED : C_DKRED;
 	if (y < 0 || x + (len + 3) * CELL_W > w)
 		return;
-	draw_char_at(fb, pitch_px, x, y, ' ', C_BLACK, C_BLACK);
+	draw_char_at(fb, pitch_px, bits, x, y, ' ', C_BLACK, C_BLACK);
 	for (row = 4; row < CELL_H - 4; row++)
 		for (col = 2; col < CELL_W - 2; col++)
-			fb[(y + row) * pitch_px + x + col] = lamp;
-	draw_char_at(fb, pitch_px, x + CELL_W, y, ' ', C_BLACK, C_BLACK);
+			put_pixel(fb, pitch_px, bits, x + col, y + row, lamp);
+	draw_char_at(fb, pitch_px, bits, x + CELL_W, y, ' ', C_BLACK, C_BLACK);
 	for (i = 0; i < len; i++)
-		draw_char_at(fb, pitch_px, x + (i + 2) * CELL_W, y, (unsigned char) text[i],
+		draw_char_at(fb, pitch_px, bits, x + (i + 2) * CELL_W, y, (unsigned char) text[i],
 		             error ? C_RED : C_GREEN, C_BLACK);
-	draw_char_at(fb, pitch_px, x + (len + 2) * CELL_W, y, ' ', C_BLACK, C_BLACK);
+	draw_char_at(fb, pitch_px, bits, x + (len + 2) * CELL_W, y, ' ', C_BLACK, C_BLACK);
 }

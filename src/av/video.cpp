@@ -66,7 +66,8 @@ Pi4Video::Pi4Video(void)
     : m_pFrameBuffer(0), m_nDepth(0), m_nWidth(0), m_nHeight(0), m_nPitch(0),
       m_nPages(2), m_nBackPage(1), m_nDisplayWidth(0), m_nDisplayHeight(0),
       m_nLastVsync(0), m_nVsyncPeriod(0), m_pSource(0),
-      m_nSourceWidth(0), m_nSourceHeight(0), m_nViewX(0), m_nViewY(0),
+      m_nSourceWidth(0), m_nSourceHeight(0), m_pSource32(0), m_bUse32(false),
+      m_nViewX(0), m_nViewY(0),
       m_nViewW(0), m_nViewH(0), m_nDestX(0), m_nDestY(0), m_nDestW(0),
       m_nDestH(0), m_nRepeat(1), m_pColumn(0), m_bFiltered(false),
       m_bCrt(false), m_bSmooth(false), m_bCurvature(false),
@@ -82,7 +83,8 @@ Pi4Video::Pi4Video(void)
     m_pKmsShadow[i] = 0;
     m_bKmsShadowValid[i] = false;
   }
-  m_nKmsShadowW = m_nKmsShadowH = 0;
+  m_nKmsShadowW = m_nKmsShadowH = m_nKmsShadowBytes = 0;
+  m_nKmsShadowCap = 0;
 }
 
 Pi4Video::~Pi4Video(void) {
@@ -92,6 +94,7 @@ Pi4Video::~Pi4Video(void) {
   delete m_pKms;
   delete m_pFrameBuffer;
   delete[] m_pSource;
+  delete[] m_pSource32;
   delete[] m_pColumn;
   for (unsigned i = 0; i < 4; i++) {
     delete[] m_pLine[i];
@@ -249,6 +252,42 @@ int Pi4Video::Allocate(int width, int height, uint16_t **pixels, int *pitch) {
   return 0;
 }
 
+// The 32-bit source is shown where the ARM or the GPU doesn't filter the
+// picture: sharp on the framebuffer, sharp and smooth on the HVS.
+bool Pi4Video::Can32(void) const {
+  return m_pFrameBuffer != 0 && (m_pKms != 0 ? !m_bCrt : !m_bFiltered);
+}
+
+uint32_t *Pi4Video::Allocate32(int *pitch) {
+  if (m_pSource == 0 || !Can32()) {
+    return 0;
+  }
+  if (m_pSource32 == 0) {
+    m_pSource32 = new uint32_t[(size_t)m_nSourceWidth * m_nSourceHeight];
+    if (m_pSource32 == 0) {
+      return 0;
+    }
+    memset(m_pSource32, 0, (size_t)m_nSourceWidth * m_nSourceHeight * 4);
+  }
+  *pitch = m_nSourceWidth * 4;
+  return m_pSource32;
+}
+
+int Pi4Video::SetDepth(int bits) {
+  bool use32 = bits == 32 && m_pSource32 != 0 && Can32();
+  if (use32 != m_bUse32) {
+    m_bUse32 = use32;
+    // The other source: every line drawn again.
+    m_bKmsShadowValid[0] = m_bKmsShadowValid[1] = false;
+  }
+  return m_bUse32 ? 32 : 16;
+}
+
+const uint8_t *Pi4Video::SourceLine(int y) const {
+  return m_bUse32 ? (const uint8_t *)(m_pSource32 + (size_t)y * m_nSourceWidth)
+                  : (const uint8_t *)(m_pSource + (size_t)y * m_nSourceWidth);
+}
+
 // Sharp: the view fills the display's height (times SCALE) in whole
 // multiples of its own height, so every emulated line is the same number of
 // display lines, and the columns are picked nearest neighbour.
@@ -335,7 +374,22 @@ void Pi4Video::DrawSharp(uint8_t *page) {
   }
   for (int y = 0; y < m_nViewH; y++) {
     const uint16_t *src = m_pSource + (size_t)(m_nViewY + y) * m_nSourceWidth;
-    if (m_nDepth == 16) {
+    if (m_bUse32) {
+      const uint32_t *src32 = m_pSource32 + (size_t)(m_nViewY + y) * m_nSourceWidth;
+      if (m_nDepth == 16) {
+        uint16_t *line16 = (uint16_t *)line;
+        for (unsigned i = 0; i < m_nDestW; i++) {
+          uint32_t p = src32[m_pColumn[i]];
+          line16[i] = (uint16_t)(((p >> 8) & 0xF800) | ((p >> 5) & 0x07E0) |
+                                 ((p >> 3) & 0x001F));
+        }
+      } else {
+        uint32_t *line32 = (uint32_t *)line;
+        for (unsigned i = 0; i < m_nDestW; i++) {
+          line32[i] = 0xFF000000u | src32[m_pColumn[i]];
+        }
+      }
+    } else if (m_nDepth == 16) {
       uint16_t *line16 = (uint16_t *)line;
       for (unsigned i = 0; i < m_nDestW; i++) {
         line16[i] = src[m_pColumn[i]];
@@ -427,6 +481,10 @@ void Pi4Video::Present(bool wait_vsync) {
       CLogger::Get()->Write(FromVideo, LogNotice,
                             "The GPU isn't needed: this picture isn't drawn by the ARM");
     }
+  }
+  if (m_bUse32 && !Can32()) {
+    // The HVS gave up, and the framebuffer filters: RGB565 again.
+    SetDepth(16);
   }
   if (m_pKms != 0) {
     if (m_bKmsResize && m_nViewW > 0) {
@@ -618,33 +676,41 @@ void Pi4Video::SetViewKms(int x, int y, int w, int h, double aspect,
   ConfigureGpu();
 }
 
-uint16_t *Pi4Video::KmsShadow(unsigned buffer) {
+uint8_t *Pi4Video::KmsShadow(unsigned buffer) {
+  // Big enough for any view of the source at 32 bits a pixel, so they are
+  // allocated once: Circle's heap loses big blocks freed (see
+  // src/port/bigalloc.c), and the view changes with each visit to the menu.
+  if (m_pKmsShadow[0] == 0) {
+    m_nKmsShadowCap = (size_t)m_nSourceWidth * m_nSourceHeight * 4;
+    m_pKmsShadow[0] = new uint8_t[m_nKmsShadowCap];
+    m_pKmsShadow[1] = new uint8_t[m_nKmsShadowCap];
+    m_bKmsShadowValid[0] = m_bKmsShadowValid[1] = false;
+  }
+  if (m_pKmsShadow[0] == 0 || m_pKmsShadow[1] == 0 ||
+      (size_t)m_nViewW * m_nViewH * SourceBytes() > m_nKmsShadowCap) {
+    return 0;
+  }
   const unsigned w = (unsigned)m_nViewW, h = (unsigned)m_nViewH;
-  if (m_nKmsShadowW != w || m_nKmsShadowH != h) {
-    for (unsigned i = 0; i < 2; i++) {
-      delete[] m_pKmsShadow[i];
-      m_pKmsShadow[i] = new uint16_t[(size_t)w * h];
-      m_bKmsShadowValid[i] = false;
-    }
-    if (m_pKmsShadow[0] == 0 || m_pKmsShadow[1] == 0) {
-      return 0;
-    }
+  const unsigned bytes = SourceBytes();
+  if (m_nKmsShadowW != w || m_nKmsShadowH != h || m_nKmsShadowBytes != bytes) {
+    m_bKmsShadowValid[0] = m_bKmsShadowValid[1] = false;
     m_nKmsShadowW = w;
     m_nKmsShadowH = h;
+    m_nKmsShadowBytes = bytes;
   }
   return m_pKmsShadow[buffer & 1];
 }
 
 // True if BUFFER holds the view as it is now.
 bool Pi4Video::KmsShows(unsigned buffer) {
-  uint16_t *shadow = KmsShadow(buffer);
+  uint8_t *shadow = KmsShadow(buffer);
   if (shadow == 0 || !m_bKmsShadowValid[buffer & 1]) {
     return false;
   }
-  const size_t bytes = (size_t)m_nViewW * sizeof *m_pSource;
+  const size_t bytes = (size_t)m_nViewW * SourceBytes();
   for (int y = 0; y < m_nViewH; y++) {
-    const uint16_t *src = m_pSource + (size_t)(m_nViewY + y) * m_nSourceWidth + m_nViewX;
-    if (memcmp(src, shadow + (size_t)y * m_nViewW, bytes) != 0) {
+    const uint8_t *src = SourceLine(m_nViewY + y) + (size_t)m_nViewX * SourceBytes();
+    if (memcmp(src, shadow + (size_t)y * bytes, bytes) != 0) {
       return false;
     }
   }
@@ -682,22 +748,28 @@ void Pi4Video::PresentKms(bool wait_vsync) {
     // The view in colour, as it is; the HVS scales it. Only the lines that
     // changed since this buffer was last drawn.
     const unsigned back = m_pKms->BackBuffer();
-    uint16_t *shadow = KmsShadow(back);
+    uint8_t *shadow = KmsShadow(back);
     const bool known = shadow != 0 && m_bKmsShadowValid[back & 1];
-    const size_t bytes = (size_t)m_nViewW * sizeof *m_pSource;
+    const size_t bytes = (size_t)m_nViewW * SourceBytes();
     int first = m_nViewH, last = -1;
     for (int y = 0; y < m_nViewH; y++) {
-      const uint16_t *src = m_pSource + (size_t)(m_nViewY + y) * m_nSourceWidth + m_nViewX;
+      const uint8_t *src = SourceLine(m_nViewY + y) + (size_t)m_nViewX * SourceBytes();
       if (shadow != 0) {
-        uint16_t *seen = shadow + (size_t)y * m_nViewW;
+        uint8_t *seen = shadow + (size_t)y * bytes;
         if (known && memcmp(src, seen, bytes) == 0) {
           continue;
         }
         memcpy(seen, src, bytes);
       }
       uint32_t *dst = buffer + (size_t)y * pitch;
-      for (int x = 0; x < m_nViewW; x++) {
-        dst[x] = Pi4Rgb565ToArgb(src[x]);
+      if (m_bUse32) {
+        // As it is (the HVS ignores the top byte).
+        memcpy(dst, src, bytes);
+      } else {
+        const uint16_t *src16 = (const uint16_t *)src;
+        for (int x = 0; x < m_nViewW; x++) {
+          dst[x] = Pi4Rgb565ToArgb(src16[x]);
+        }
       }
       if (first > y) {
         first = y;

@@ -43,7 +43,7 @@ PREVIOUS_OBJS := $(addprefix $(BUILD)/previous/,$(PREVIOUS_CORE_SRCS:.c=.o)) \
 PREVIOUS_LIB := $(BUILD)/libprevious.a
 
 OBJS = src/main.o src/kernel.o src/logging.o src/options.o \
-       src/port/platform.o src/port/menu.o src/port/osd.o src/port/posix_extra.o \
+       src/port/platform.o src/port/menu.o src/port/osd.o src/port/posix_extra.o src/port/bigalloc.o \
        src/port/fswrap.o \
        $(addprefix src/port/,$(PREVIOUS_PORT_SRCS:.c=.o) $(PREVIOUS_PORT_NET_SLIRP:.c=.o)) \
        $(addprefix src/port/,$(PREVIOUS_PORT_CXX_SRCS:.cpp=.o)) \
@@ -83,6 +83,8 @@ INCLUDE := $(CIRCLE_STDLIB_INCLUDES) $(INCLUDE) -I $(CIRCLEHOME)/addon/fatfs
 
 # See src/port/fswrap.c
 LDFLAGS += --wrap=stat
+# See src/port/bigalloc.c
+LDFLAGS += --wrap=malloc --wrap=free
 
 VERSION_DEFINES = -DBMNEXT_VERSION=\"$(BMNEXT_VERSION)\" \
                   -DBMNEXT_GIT=\"$(BMNEXT_GIT)\" -DPREVIOUS_SVN=\"$(PREVIOUS_VERSION)\"

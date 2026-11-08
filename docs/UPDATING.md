@@ -108,7 +108,10 @@ bytes and its integer registers unchanged for 2048 cycles, as in the ROM's
 and NeXTSTEP's wait loops), it runs 16 cycles every 100 microseconds. It
 reads the i860's private program counter and registers (that file opens
 Previous's classes with `#define private public`): check it when updating
-Previous's `i860.hpp`. Still to do:
+Previous's `i860.hpp`. The board's screen goes to a 32-bit frame buffer
+beside the RGB565 one (`host_video_init32()`, `host_video_depth()` in
+`src/host.h`), shown wherever the ARM or the GPU doesn't filter the
+picture (everything but the CRT shader).
 
-1. The board's 24-bit colour on a 32-bit display (now RGB565).
-2. The Pi 4, if its cores can keep up.
+The board is for the Pi 5 only: the i860 needs a core of its own, and the
+Pi 4 has none to spare (core 3 is the Pi 5's helper core).

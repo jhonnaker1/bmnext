@@ -25,5 +25,6 @@ library), reset first in the same way.
 | Patch | Description |
 | --- | --- |
 | `newlib_fastseek_patch.diff` | Fast seek for files of 1 MB or more opened as they are (disk images): their cluster map is made when they are opened, so a seek back no longer follows the cluster chain from the file's start, a read from the SD card for every 128 clusters (hundreds a seek in a 2 GB image). A file in fast seek mode can't grow, so the map is let go before a write or seek past its end, and before truncating. |
+| `newlib_seek64_patch.diff` | 64-bit file positions in `lseek()` (`CGlueIO::LSeek()` and `_lseek()` took and gave an `int`, so a disk image's data past 2 GB couldn't be reached though FAT32's files go to 4 GB). A position past what FatFs can hold is `EOVERFLOW`, not wrapped round. From BMAmiga. |
 
 Previous is not patched; see `docs/UPDATING.md`.

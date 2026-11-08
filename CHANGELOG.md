@@ -10,12 +10,21 @@
 - Video, Screen: the NeXT's screen or the board's; Auto (the default)
   shows the board's once NeXTSTEP draws on it
 - The i860 runs on a core of its own (the Pi 5's core 3, the helper
-  core), as Previous runs it on a thread of its own; the board's colours
-  are shown at 16 bits a pixel for now
+  core), as Previous runs it on a thread of its own
+- The board's screen in its full 24-bit colour, on a 32-bit frame buffer
+  beside the RGB565 one (16 bits a pixel with the CRT shader)
 - The i860's wait loops are skipped: while it only waits for the NeXT, it
   runs 16 cycles every 100 microseconds, so its core is mostly idle (the
   log's speed lines show the i860's MHz)
 - Previous's NeXTbus (NextBus.cpp) replaces BMNeXT's nextbus.c
+- Fixed: disk images over 2 GB (FAT32 allows up to 4 GB) couldn't be read
+  past 2 GB: Circle's C library seeked with an int (newlib_seek64_patch.diff,
+  from BMAmiga)
+- Fixed: changing the machine a few times (the CPU, the memory, the
+  board) ran out of memory and stopped BMNeXT. Circle's heap loses big
+  blocks when they are freed, and Previous frees and allocates the NeXT's
+  memory (up to 128 MB) and the board's (68 MB) each time; BMNeXT now keeps
+  those blocks and gives them again (src/port/bigalloc.c)
 
 ## 0.1.0 (2026-10-28)
 

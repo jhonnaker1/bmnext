@@ -388,6 +388,32 @@ int host_video_init(int width, int height, uint16_t **pixels, int *pitch)
 	return 0;
 }
 
+/* The 32-bit frame buffer, and which one is shown. BMNEXT_SIM_NO32=1:
+   none, as on a display that can't show it. */
+static uint32_t *fb32;
+static int depth = 16;
+
+uint32_t *host_video_init32(int *pitch)
+{
+	const char *no32 = getenv("BMNEXT_SIM_NO32");
+	if (fb == NULL || (no32 != NULL && *no32 == '1'))
+		return NULL;
+	if (fb32 == NULL)
+		fb32 = calloc((size_t) fb_w * fb_h, 4);
+	*pitch = fb_w * 4;
+	return fb32;
+}
+
+int host_video_depth(int bits)
+{
+	int want = bits == 32 && fb32 != NULL ? 32 : 16;
+	if (want != depth) {
+		depth = want;
+		fprintf(stderr, "[sim] frame %ld: showing the %d-bit frame buffer\n", frame, depth);
+	}
+	return depth;
+}
+
 void host_video_set_view(int x, int y, int w, int h, double aspect)
 {
 	view_x = x; view_y = y; view_w = w; view_h = h;
@@ -405,6 +431,13 @@ static void screenshot(const char *name)
 	for (y = view_y; y < view_y + view_h; y++)
 			for (x = view_x; x < view_x + view_w; x++) {
 				uint16_t c = fb[y * fb_pitch + x];
+				if (depth == 32) {
+					uint32_t p = fb32[(size_t) y * fb_w + x];
+					fputc((p >> 16) & 0xff, f);
+					fputc((p >> 8) & 0xff, f);
+					fputc(p & 0xff, f);
+					continue;
+				}
 				fputc(((c >> 11) & 0x1f) * 255 / 31, f);
 				fputc(((c >> 5) & 0x3f) * 255 / 63, f);
 				fputc((c & 0x1f) * 255 / 31, f);

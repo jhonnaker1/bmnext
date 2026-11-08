@@ -62,7 +62,7 @@ void Statusbar_AddMessage(const char *msg, uint32_t msecs)
 
 /* ---- The disk activity line ----------------------------------------------- */
 
-void bmnext_draw_disk_activity(uint16_t *fb, int pitch_px, int w, int h)
+void bmnext_draw_disk_activity(void *fb, int pitch_px, int bits, int w, int h)
 {
 	double now;
 	int i;
@@ -79,7 +79,7 @@ void bmnext_draw_disk_activity(uint16_t *fb, int pitch_px, int w, int h)
 	}
 	if (shown_led < 0 || now > shown_until)
 		return;
-	osd_draw_disk_status(fb, pitch_px, w, h, led_names[shown_led],
+	osd_draw_disk_status(fb, pitch_px, bits, w, h, led_names[shown_led],
 	                     now <= led_until[shown_led], FALSE);
 	bmnext_screen_dirty_bottom();
 }

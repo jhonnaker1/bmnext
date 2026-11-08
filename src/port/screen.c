@@ -22,8 +22,11 @@
  * by default (Auto) the NeXT's until the board's has a picture: the
  * board's ROM switches its video on with the screen one plain colour,
  * NeXTSTEP's window server then draws the desktop there; from then on the
- * board's, until the NeXT restarts. For now its 24-bit colour is
- * shown as the display's RGB565, like the NeXT's own.
+ * board's, until the NeXT restarts. Its 24-bit colour goes to a 32-bit
+ * frame buffer, where the display has one (host_video_init32(): the Pi 4
+ * and 5, but not with the CRT shader), or else is shown as RGB565 like the
+ * NeXT's own. The menu is drawn in RGB565 (osd.c), the notification and
+ * the disk light in the frame buffer shown (bmnext_screen_pixels()).
  *
  * Previous's statusbar is not used: the disk activity is drawn by BMNeXT
  * (statusbar.c), and the menu is BMNeXT's.
@@ -57,6 +60,9 @@ int screen_h = BMNEXT_FB_H;
 
 static uint16_t *fb;                  /* the display's */
 static int fb_pitch;
+static uint32_t *fb32;                /* and its 32-bit one, if it has one */
+static int fb32_pitch;
+static int shown_bits = 16;           /* the one shown */
 
 /* What the last copy saw of each line (of NEXTVideo or the board's
    memory), to find what changed. */
@@ -104,11 +110,27 @@ static void make_tables(void)
 	}
 }
 
-void bmnext_screen_init(uint16_t *pixels, int pitch_px)
+void bmnext_screen_init(uint16_t *pixels, int pitch_px, uint32_t *pixels32,
+                        int pitch32_px)
 {
 	fb = pixels;
 	fb_pitch = pitch_px;
+	fb32 = pixels32;
+	fb32_pitch = pitch32_px;
+	if (fb32 != NULL)
+		printf("BMNeXT: a 32-bit frame buffer for the NeXTdimension's screen\n");
 	make_tables();
+}
+
+void *bmnext_screen_pixels(int *pitch_px, int *bits)
+{
+	*bits = shown_bits;
+	if (shown_bits == 32) {
+		*pitch_px = fb32_pitch;
+		return fb32;
+	}
+	*pitch_px = fb_pitch;
+	return fb;
 }
 
 void bmnext_set_screen(int which)
@@ -221,11 +243,16 @@ void bmnext_screen_dirty_bottom(void)
 static void blank(void)
 {
 	int y;
-	for (y = 0; y < BMNEXT_FB_H; y++)
-		memset(fb + (size_t) y * fb_pitch, 0, BMNEXT_FB_W * 2);
+	for (y = 0; y < BMNEXT_FB_H; y++) {
+		if (shown_bits == 32)
+			memset(fb32 + (size_t) y * fb32_pitch, 0, BMNEXT_FB_W * 4);
+		else
+			memset(fb + (size_t) y * fb_pitch, 0, BMNEXT_FB_W * 2);
+	}
 }
 
-/* The board's lines that changed, as RGB565. */
+/* The board's lines that changed: 32-bit, or as RGB565. Its pixels are
+   blue, green, red and alpha bytes, a little endian 0xAARRGGBB. */
 static int copy_dimension(const uint8_t *vram, int redraw_from)
 {
 	int y, x, copied = FALSE;
@@ -233,12 +260,18 @@ static int copy_dimension(const uint8_t *vram, int redraw_from)
 	for (y = 0; y < BMNEXT_FB_H; y++) {
 		const uint8_t *src = vram + (size_t) y * ND_LINE_PX * 4;
 		uint8_t *seen = last_lines + (size_t) y * shown;
-		uint16_t *dst = fb + (size_t) y * fb_pitch;
 		if (last_valid && y < redraw_from && memcmp(src, seen, shown) == 0)
 			continue;
 		memcpy(seen, src, shown);
-		for (x = 0; x < BMNEXT_FB_W; x++, src += 4)
-			dst[x] = rgb565(src[2], src[1], src[0]);
+		if (shown_bits == 32) {
+			uint32_t *dst = fb32 + (size_t) y * fb32_pitch;
+			for (x = 0; x < BMNEXT_FB_W; x++, src += 4)
+				dst[x] = (uint32_t) src[2] << 16 | (uint32_t) src[1] << 8 | src[0];
+		} else {
+			uint16_t *dst = fb + (size_t) y * fb_pitch;
+			for (x = 0; x < BMNEXT_FB_W; x++, src += 4)
+				dst[x] = rgb565(src[2], src[1], src[0]);
+		}
 		copied = TRUE;
 	}
 	return copied;
@@ -254,9 +287,17 @@ int bmnext_screen_copy(int force)
 	int y, copied = FALSE;
 	int redraw_from;
 	int source = show_dimension();
+	int bits;
 
 	if (fb == NULL)
 		return FALSE;
+	/* The board's screen in 32 bits, where it can be. */
+	bits = host_video_depth(source && fb32 != NULL ? 32 : 16);
+	if (bits != shown_bits) {
+		shown_bits = bits;
+		last_valid = FALSE;
+		force = TRUE;
+	}
 	if (source != last_source) {
 		last_source = source;
 		last_valid = FALSE;

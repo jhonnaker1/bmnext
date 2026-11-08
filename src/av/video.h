@@ -6,6 +6,10 @@
 // property interface. The firmware puts it on the screen; BMNeXT scales
 // the Apple II's picture into it.
 //
+// The NeXTdimension's screen can come as 32-bit pixels instead
+// (Allocate32()), shown as they are where the picture isn't filtered by
+// the ARM or the GPU (both read RGB565).
+//
 // The picture comes from KEGS as RGB565 (BMA800XL's, from atari800, is
 // 8-bit indexed with a palette; this is its code, changed for that). Sharp
 // pixels (the default) use a 16-bit framebuffer the size of the display. Smooth scaling and the CRT shader (src/av/scaler.h) need
@@ -79,6 +83,11 @@ public:
   // Core 1, from the emulator (see host.h).
   // PITCH is in bytes.
   int Allocate(int width, int height, uint16_t **pixels, int *pitch);
+  // A 32-bit source beside the RGB565 one, the same size, 0x00RRGGBB (the
+  // NeXTdimension's screen), or 0 if this display can't show it.
+  uint32_t *Allocate32(int *pitch);
+  // Which source is shown: 32 or 16 bits. Returns the one shown.
+  int SetDepth(int bits);
   void SetView(int x, int y, int w, int h, double aspect, double scale);
   void Present(bool wait_vsync);
   void DisplaySize(int *width, int *height) const;
@@ -113,10 +122,14 @@ private:
   // The sharp picture on the HVS: what each of the display's two buffers
   // was last given of the view (KmsShadow(), 0 if there is no memory for
   // it), so only the lines that changed are drawn again.
-  uint16_t *KmsShadow(unsigned buffer);
+  uint8_t *KmsShadow(unsigned buffer);
   bool KmsShows(unsigned buffer);
   void WaitForVerticalSync(void);
   bool DrawnByArm(void) const;
+  bool Can32(void) const;
+  // The source shown: its line and its bytes a pixel.
+  const uint8_t *SourceLine(int y) const;
+  unsigned SourceBytes(void) const { return m_bUse32 ? 4 : 2; }
   void ConfigureGpu(void);
   void DropGpu(const char *why);
 
@@ -140,6 +153,9 @@ private:
   uint16_t *m_pSource;
   int m_nSourceWidth;
   int m_nSourceHeight;
+  // And the 32-bit one, when it is shown instead (SetDepth()).
+  uint32_t *m_pSource32;
+  bool m_bUse32;
 
   // The part of it shown, and where it goes on the screen.
   int m_nViewX, m_nViewY, m_nViewW, m_nViewH;
@@ -174,9 +190,10 @@ private:
   unsigned m_nKmsSrcW, m_nKmsSrcH;
   double m_fKmsAspect, m_fKmsScale;  // the last SetViewKms()'s
   bool m_bKmsResize;                 // SetViewKms() again at the next frame
-  uint16_t *m_pKmsShadow[2];         // see KmsShadow()
+  uint8_t *m_pKmsShadow[2];          // see KmsShadow()
   bool m_bKmsShadowValid[2];
-  unsigned m_nKmsShadowW, m_nKmsShadowH;
+  unsigned m_nKmsShadowW, m_nKmsShadowH, m_nKmsShadowBytes;
+  size_t m_nKmsShadowCap;            // bytes in each
 
   static Pi4Video *s_pThis;
 };

@@ -57,6 +57,14 @@ void host_helper_sleep_us(unsigned us);
 
 /* Allocates the emulator's RGB565 frame buffer. PITCH is in bytes. */
 int host_video_init(int width, int height, uint16_t **pixels, int *pitch);
+/* A 32-bit frame buffer beside the RGB565 one (after host_video_init()),
+   the same size, its pixels 0x00RRGGBB; NULL where the display can't show
+   one. PITCH is in bytes. */
+uint32_t *host_video_init32(int *pitch);
+/* Which of the two frame buffers host_video_present() shows from now on:
+   BITS 32 for the 32-bit one, 16 for the RGB565 one. Returns the one shown:
+   16 while the 32-bit one can't be (the CRT shader, which reads RGB565). */
+int host_video_depth(int bits);
 /* Area of the frame buffer that is shown, and its display aspect ratio
    (width / height). */
 void host_video_set_view(int x, int y, int w, int h, double aspect);
