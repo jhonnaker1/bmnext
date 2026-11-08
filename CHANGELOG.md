@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-11-07)
 
 - The NeXTdimension board on the Raspberry Pi 5: a NeXTcube with NeXT's
   32-bit colour board in slot 2, with Previous's Intel i860 emulator (by
