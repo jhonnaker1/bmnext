@@ -159,6 +159,21 @@ if ls "$OUT/roms" | grep -Eiq '^nd[_-]|dimension'; then
     check_log dimension "\\[i860\\] \\*+ RESTARTED" "the NeXT starts its i860"
     # Screen Auto: the NeXT's, as the board's ROM leaves its own plain.
     monitor dimension a
+    # The i860 on a helper core of its own, as on the Pi 5 (a thread here).
+    BMNEXT_SIM_HELPER=1 run dimension_helper "" '1800 shot a.ppm\n1801 quit\n' \
+        "${STATION/nMachineType = 2/nMachineType = 1}[Dimension]\nbEnabled0 = TRUE\n"
+    check_log dimension_helper "i860 at slot 2 on the helper core" "the i860 on the helper core"
+    check_log dimension_helper "\\[i860\\] \\*+ RESTARTED" "the NeXT starts it there"
+    monitor dimension_helper a
+    # Machine > NeXTdimension Board off and on again: the i860's thread ends
+    # and a new one starts on the helper.
+    BMNEXT_SIM_HELPER=1 run dimension_helper "" "$(key $F12 600)$(key $DOWN 610)$(key $DOWN 615)$(key $ENTER 620)$(key $DOWN 630)$(key $DOWN 635)$(key $DOWN 640)$(key $DOWN 645)$(key $ENTER 655)$(key $ENTER 900)$(key $F12 1000)2400 quit\n"
+    n=$(grep -c "i860 at slot 2 on the helper core" "$OUT/dimension_helper/log.txt")
+    if [ "$n" -eq 2 ]; then
+        pass "dimension_helper: the board off and on again, a new i860 thread"
+    else
+        fail "dimension_helper" "the i860 started $n time(s) on the helper, not 2"
+    fi
     # Screen NeXTdimension: the board's, with no ROM monitor on it.
     run dimension_screen "nd_screen=dimension" '1800 shot a.ppm\n1801 quit\n' \
         "${STATION/nMachineType = 2/nMachineType = 1}[Dimension]\nbEnabled0 = TRUE\n"

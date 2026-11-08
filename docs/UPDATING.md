@@ -91,11 +91,18 @@ Previous's `NextBus.cpp` and `src/dimension/` (C++, `PREVIOUS_CXX_SRCS` in
 instead). The board is for the Pi 5 and the PC simulator only
 (`BMNEXT_HAS_DIMENSION` in `src/port/bmnext.h`): a Pi 5 core takes 25-28 ns
 an i860 cycle, 83-92% of the core at the i860's 33 MHz, with the i860
-mostly in a wait loop. Its i860 runs in Previous's no-thread mode
-(`bI860Thread = false`, on the emulator's core). Still to do:
+mostly in a wait loop. Its i860 runs on a thread of its own, as in
+Previous (`bI860Thread`, which Previous sets when `host_num_cpus()` says
+more than one): `src/port/host_next.c` runs that thread on the helper core
+(`src/host.h`: the Pi 5's core 3, `src/kernel.cpp`; a thread in the PC
+simulator with `BMNEXT_SIM_HELPER=1`), with real atomics and locks. The
+helper must not use Circle's scheduler: it sleeps on the timer, and its
+log lines (`Log_Printf` in the C++ files, through
+`compat/previous_prefix.h`) are queued for core 1 to print. Without a
+helper the i860 runs on the emulator's core. Still to do:
 
-1. The i860 on a core of its own (Circle's cores 2 and 3 are free), which
-   needs real locks and atomics in `src/port/host_next.c`, and skipping the
-   i860's wait loops.
+1. Skipping the i860's wait loops (it spends nearly all its time in one
+   or two instructions waiting for the host), which would leave core 3
+   mostly idle.
 2. The board's 24-bit colour on a 32-bit display (now RGB565).
-3. The Pi 4, if its cores can keep up with that.
+3. The Pi 4, if its cores can keep up.

@@ -9,8 +9,9 @@
   (ND_step1_v43.BIN or dimension_eeprom.bin) is found in the roms folder.
 - Video, Screen: the NeXT's screen or the board's; Auto (the default)
   shows the board's once NeXTSTEP draws on it
-- For now the i860 shares the 68040's core (a NeXT with the board runs
-  slower), and the board's colours are shown at 16 bits a pixel
+- The i860 runs on a core of its own (the Pi 5's core 3, the helper
+  core), as Previous runs it on a thread of its own; the board's colours
+  are shown at 16 bits a pixel for now
 - Previous's NeXTbus (NextBus.cpp) replaces BMNeXT's nextbus.c
 
 ## 0.1.0 (2026-10-28)

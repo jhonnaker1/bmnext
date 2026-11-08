@@ -65,6 +65,63 @@ static inline void Core1Beat(const char *stage) {
   s_Core1Beat = s_Core1Beat + 1;
 }
 
+// ---- The helper core: core 3 on the Pi 5 (src/host.h) --------------------
+//
+// Runs one task at a time for the emulator, posted by core 1: the
+// NeXTdimension's i860. Waits (WFE) for one; SEV wakes it.
+
+#if defined(ARM_ALLOW_MULTI_CORE) && RASPPI >= 5
+#define HELPER_CORE 3
+typedef void (*THelperTask)(void *);
+static THelperTask volatile s_HelperTask = 0;
+static void *volatile s_HelperArg = 0;
+static int s_HelperBusy = 0;  // a task posted and not yet returned
+
+static void HelperLoop(void) {
+  for (;;) {
+    THelperTask task;
+    while ((task = __atomic_load_n(&s_HelperTask, __ATOMIC_ACQUIRE)) == 0) {
+      asm volatile("wfe");
+    }
+    task(s_HelperArg);
+    __atomic_store_n(&s_HelperTask, (THelperTask)0, __ATOMIC_RELAXED);
+    __atomic_store_n(&s_HelperBusy, 0, __ATOMIC_RELEASE);
+  }
+}
+
+int host_helper_available(void) { return 1; }
+
+int host_helper_start(void (*task)(void *arg), void *arg) {
+  int idle = 0;
+  if (!__atomic_compare_exchange_n(&s_HelperBusy, &idle, 1, false, __ATOMIC_ACQ_REL,
+                                   __ATOMIC_ACQUIRE)) {
+    return -1;
+  }
+  s_HelperArg = arg;
+  __atomic_store_n(&s_HelperTask, task, __ATOMIC_RELEASE);
+  asm volatile("dsb sy\n\tsev" ::: "memory");
+  return 0;
+}
+
+int host_helper_busy(void) { return __atomic_load_n(&s_HelperBusy, __ATOMIC_ACQUIRE); }
+
+int host_on_helper(void) { return CMultiCoreSupport::ThisCore() == HELPER_CORE; }
+
+void host_helper_sleep_us(unsigned us) {
+  // The system timer counts microseconds (CLOCKHZ); no scheduler here.
+  u64 end = CTimer::GetClockTicks64() + (u64)us * (CLOCKHZ / 1000000);
+  while (CTimer::GetClockTicks64() < end) {
+    asm volatile("yield");
+  }
+}
+#else
+int host_helper_available(void) { return 0; }
+int host_helper_start(void (*task)(void *arg), void *arg) { return -1; }
+int host_helper_busy(void) { return 0; }
+int host_on_helper(void) { return 0; }
+void host_helper_sleep_us(unsigned us) { CTimer::SimpleusDelay(us); }
+#endif
+
 #ifdef ARM_ALLOW_MULTI_CORE
 
 //
@@ -89,8 +146,15 @@ void CEmulatorCore::Run(unsigned nCore) {
     Core1Beat("starting the emulator");
     bmnext_main();
   }
+#if RASPPI >= 5
+  // Core 3 is the helper core (the NeXTdimension's i860, above).
+  if (nCore == HELPER_CORE) {
+    HelperLoop();
+  }
+#endif
 #if RASPPI >= 4
-  // Cores 2 and 3 help draw smoothed and CRT frames (src/av/video.h).
+  // Cores 2 and 3 (the Pi 4's; core 2 on the Pi 5) help draw smoothed and
+  // CRT frames (src/av/video.h).
   if (nCore >= 2) {
     Pi4Video::WorkerLoop(nCore);
   }

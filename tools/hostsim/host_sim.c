@@ -27,6 +27,11 @@
  * BMNEXT_SIM_RATE=48000 plays the sound at the Pi 4 and 5's HDMI rate
  * (the latency asked for is taken at 44.1 kHz, as there).
  *
+ * BMNEXT_SIM_HELPER=1 gives it a helper core (src/host.h), a thread, as the
+ * Pi 5 has: the NeXTdimension's i860 then runs on it, as there, and not
+ * in step with the emulator's virtual time. Without it the i860 runs on
+ * the emulator's thread, and tests come out the same every time.
+ *
  * With BMNEXT_LIVE=PORT it runs in real time instead, with no script: the
  * screen, keyboard, gamepads and sound are in a web page at
  * http://127.0.0.1:PORT/ (live.c, live.html). tools/hostsim/live.sh starts it.
@@ -191,6 +196,60 @@ void host_yield(void)
 		now = real_time();
 	else
 		now += 1e-7;
+}
+
+/* ---- The helper core: a thread (BMNEXT_SIM_HELPER=1) ------------------------- */
+
+static pthread_t helper_thread;
+static void (*helper_task)(void *);
+static void *helper_arg;
+static int helper_busy;
+static __thread int on_helper;   /* set on the helper's thread */
+
+int host_helper_available(void)
+{
+	const char *e = getenv("BMNEXT_SIM_HELPER");
+	return e != NULL && atoi(e) != 0;
+}
+
+static void *helper_main(void *unused)
+{
+	on_helper = 1;
+	helper_task(helper_arg);
+	__atomic_store_n(&helper_busy, 0, __ATOMIC_RELEASE);
+	return NULL;
+}
+
+int host_helper_start(void (*task)(void *arg), void *arg)
+{
+	if (!host_helper_available() || __atomic_load_n(&helper_busy, __ATOMIC_ACQUIRE))
+		return -1;
+	if (helper_thread)
+		pthread_join(helper_thread, NULL);
+	helper_task = task;
+	helper_arg = arg;
+	__atomic_store_n(&helper_busy, 1, __ATOMIC_RELEASE);
+	if (pthread_create(&helper_thread, NULL, helper_main, NULL) != 0) {
+		helper_thread = 0;
+		__atomic_store_n(&helper_busy, 0, __ATOMIC_RELEASE);
+		return -1;
+	}
+	return 0;
+}
+
+int host_helper_busy(void)
+{
+	return __atomic_load_n(&helper_busy, __ATOMIC_ACQUIRE);
+}
+
+int host_on_helper(void)
+{
+	return on_helper;
+}
+
+void host_helper_sleep_us(unsigned us)
+{
+	usleep(us);
 }
 
 /* ---- Sound ---------------------------------------------------------------- */

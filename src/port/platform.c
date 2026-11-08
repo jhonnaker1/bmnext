@@ -41,6 +41,10 @@
 #include "bmnext.h"
 #include "osd.h"
 
+/* Previous's (its host.h, host_next.c), which names its own host_sleep_us()
+   like the kernel's. */
+int host_num_cpus(void);
+
 /* ---- Settings ---------------------------------------------------------------- */
 
 const char *bmnext_sd_root(void)
@@ -290,10 +294,11 @@ static void startup_settings(void)
 {
 	int i;
 	/* At most one NeXTdimension board, in slot 2 (Machine > NeXTdimension
-	   Board), with its i860 on the emulator's core; none on a Pi 4. */
+	   Board), none on a Pi 4. Its i860 runs on the helper core where there
+	   is one (Previous decides from host_num_cpus(), host_next.c). */
 	for (i = BMNEXT_HAS_DIMENSION ? 1 : 0; i < ND_MAX_BOARDS; i++)
 		ConfigureParams.Dimension.board[i].bEnabled = false;
-	ConfigureParams.Dimension.bI860Thread = false;
+	ConfigureParams.Dimension.bI860Thread = host_num_cpus() != 1;
 	ConfigureParams.Dimension.nConsoleSlot = 0;
 	bmnext_find_roms();
 	/* Previous's own settings dialog doesn't come up (it's BMNeXT's menu),

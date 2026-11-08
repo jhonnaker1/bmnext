@@ -43,6 +43,11 @@ FILE *bmnext_tmpfile(void);
 
 #ifdef __cplusplus
 }
+
+/* The C++ files (the NeXTbus and NeXTdimension) log through host_next.c,
+   which holds back the lines of the i860 on the helper core for the CPU's
+   core to print. */
+#define Log_PrintfInt bmnext_log_from_cxx
 #endif
 
 #endif /* BMNEXT_PREVIOUS_PREFIX_H_ */

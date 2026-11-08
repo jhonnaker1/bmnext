@@ -162,8 +162,8 @@ for its desktop. There is one display, so *Video*,
 
 For now:
 
-- The board's i860 runs on the same Pi core as the NeXT's 68040, so a
-  NeXT with the board runs slower than one without.
+- The board's i860 has a Pi core of its own (core 3), and keeps up with
+  the real board's 33 MHz; that core is then busy all the time.
 - The board's 24-bit colour is shown at the display's 16 bits a pixel
   (65536 colours): smooth shades may show bands.
 - Not on the Pi 4: its cores are too slow for the i860 (the menu item is

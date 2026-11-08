@@ -12,7 +12,8 @@
 // a 32-bit one; it is at most 1080 lines high (720 with curvature and
 // smooth both on), and on bigger displays the firmware scales it up.
 // Those pictures are drawn by cores 1, 2 and 3 together: core 1 runs the
-// emulator, cores 2 and 3 have nothing else to do.
+// emulator, cores 2 and 3 have nothing else to do (on the Pi 5, cores 1
+// and 2: core 3 is the helper core, src/host.h).
 // With the crt_gpu option the 3D GPU draws them instead
 // (src/v3d/crt.h), and the ARM again if the GPU can't.
 //

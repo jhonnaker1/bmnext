@@ -37,6 +37,22 @@ void host_sleep_us(unsigned us);
 /* Lets Circle's tasks (VCHIQ, USB) run. Call regularly. */
 void host_yield(void);
 
+/* ---- A helper core --------------------------------------------------------- */
+
+/* A core of its own for one long-running task at a time (the
+   NeXTdimension's i860): the Pi 5's core 3, a thread in the PC simulator.
+   host_helper_start() returns 0 when TASK is started, -1 when there is no
+   helper (the Pi 4) or it is busy. The task must not use Circle's
+   scheduler, the network or the files: it sleeps with
+   host_helper_sleep_us(), and only the emulator's core prints. */
+int host_helper_available(void);
+int host_helper_start(void (*task)(void *arg), void *arg);
+/* Whether the task started last is still running. */
+int host_helper_busy(void);
+/* Whether the caller is the helper's task. */
+int host_on_helper(void);
+void host_helper_sleep_us(unsigned us);
+
 /* ---- Video --------------------------------------------------------------- */
 
 /* Allocates the emulator's RGB565 frame buffer. PITCH is in bytes. */
