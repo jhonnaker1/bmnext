@@ -1,7 +1,7 @@
 /*
  * host.h - services the Circle kernel provides to the emulator.
  *
- * The emulator (KEGS and the port in src/port/) is C and runs on core 1.
+ * The emulator (Previous and the port in src/port/) runs on core 1.
  * Everything it needs from the hardware goes through these functions, which
  * are implemented in src/kernel.cpp.
  *
@@ -133,6 +133,17 @@ int host_mouse_read(int *dx, int *dy, int *buttons);
 /* State of the joystick wired to GPIO port PORT (0 or 1), as HOST_JOY_* bits.
    Always 0 when GPIO joysticks are disabled. */
 int host_gpio_joystick(int port);
+
+/* ---- USB sticks ---------------------------------------------------------- */
+
+#define HOST_USB_STICKS 3
+
+/* A number for USB stick N (0..HOST_USB_STICKS-1) plugged in now,
+   different for each stick plugged in since boot, or 0 when there is
+   none. */
+unsigned host_usb_stick(int n);
+/* The directory holding stick N's files ("USB:/", "USB2:/", "USB3:/"). */
+const char *host_usb_root(int n);
 
 /* ---- System -------------------------------------------------------------- */
 

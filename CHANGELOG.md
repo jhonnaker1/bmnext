@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.3.0 (2026-11-19)
+
+From BMA800XL 1.4.3 to 1.4.6 (by way of BMMacintosh 0.3.0):
+
+- USB sticks: up to three, FAT32 or FAT16, as `USB:`, `USB2:` and `USB3:`.
+  The menu's file browser has a **[ Drives ]** page for them, and the web
+  UI shows them. Disk images and ROMs can be used from them (Previous's
+  paths that name their own volume are kept as they are: `src/port/fswrap.c`)
+- The Pi 5's fan (the Active Cooler or a case fan) is driven from the
+  chip's temperature, with Raspberry Pi OS's steps; the power button's
+  code moved to `src/pi45/board.cpp` with it
+- Web UI: uploads about five times faster, no more "upload truncated"
+  (Circle's TCP receive window, `src/patches/`), idle connections kept
+  open until a request arrives (Safari reuses them), and the file list
+  sorted by name, size or date
+
+From BMAmiga 0.6.2:
+
+- Circle's tasks (the network, Wi-Fi, the web UI, and the NeXT's own
+  connections through them) get at least 1 ms each frame instead of one
+  turn, so a busy NeXT no longer starves them (`task_time_us`). On a
+  Pi 5 it costs the NeXT about 8% of its top speed under full load (a
+  Turbo NeXTcube ran at 126% instead of 137%), and nothing while idle;
+  `task_time_us=0` gives the old behaviour
+
+Fixed:
+
+- Building on a Pi 5 (or CM5) running Linux failed in the scaler tests:
+  ThreadSanitizer doesn't run on a kernel with 47-bit addresses. The frame
+  sharing test now runs without it there (GitHub issue #1, reported by
+  mibosshard)
+- A disk started from the web UI (or a USB stick's) is now found again
+  after a reboot: Previous put the current folder in front of a path that
+  names its volume (`SD:/disks/x.img` became `SD:/SD:/disks/x.img`)
+- Documents: the status (tested on the Pi 5), disk images up to 4 GB, and
+  leftover comments from the projects BMNeXT came from
+
+Already in BMNeXT, so not taken: the Pi 5 at 2.4 GHz, and the HDMI sound
+clock for a display mode the firmware set. Not taken: BMA800XL's Updater,
+its USB paddles and Trak-ball, and the R: modem.
+
 ## 0.2.0 (2026-11-07)
 
 - The NeXTdimension board on the Raspberry Pi 5: a NeXTcube with NeXT's

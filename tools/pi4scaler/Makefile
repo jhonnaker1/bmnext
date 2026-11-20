@@ -13,7 +13,7 @@ CXXFLAGS = -O3 -g -Wall -std=c++17
 
 OUT := build
 
-all: $(OUT)/pi4scaler_test $(OUT)/share_test
+all: $(OUT)/pi4scaler_test $(OUT)/share_test $(OUT)/share_test_plain
 
 $(OUT)/pi4scaler_test: test.cpp $(ROOT)/src/av/scaler.cpp $(ROOT)/src/av/scaler.h
 	@mkdir -p $(OUT)
@@ -23,6 +23,12 @@ $(OUT)/pi4scaler_test: test.cpp $(ROOT)/src/av/scaler.cpp $(ROOT)/src/av/scaler.
 $(OUT)/share_test: test_share.cpp $(ROOT)/src/av/frameshare.h
 	@mkdir -p $(OUT)
 	$(CXX) -O2 -g -Wall -std=c++17 -fsanitize=thread -o $@ test_share.cpp -pthread
+
+# The same without ThreadSanitizer, for machines it can't run on (a Linux
+# kernel with 47-bit addresses, as on a Pi 5: GitHub issue #1).
+$(OUT)/share_test_plain: test_share.cpp $(ROOT)/src/av/frameshare.h
+	@mkdir -p $(OUT)
+	$(CXX) -O2 -g -Wall -std=c++17 -o $@ test_share.cpp -pthread
 
 clean:
 	rm -rf $(OUT)

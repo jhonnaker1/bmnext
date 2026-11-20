@@ -28,7 +28,8 @@
 #include <string.h>
 #include <vector>
 
-// BMNeXT's frame buffer (src/port/platform.c): KEGS's window, all shown.
+// BMApple2's frame buffer (KEGS's window, all shown): a test size from
+// there; BMNeXT's is the NeXT's 1120x832.
 static const int SrcW = 704, SrcH = 462;
 static const int ViewX = 0, ViewY = 0, ViewW = 704, ViewH = 462;
 

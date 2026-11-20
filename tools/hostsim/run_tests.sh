@@ -118,7 +118,7 @@ differ() {
 }
 
 # USB HID usages used below.
-F12=0x45 DOWN=0x51 ENTER=0x28 ESC=0x29 POWER=0x66 A=0x04
+F12=0x45 DOWN=0x51 UP=0x52 ENTER=0x28 ESC=0x29 POWER=0x66 A=0x04
 # KEY USAGE FRAME: press at FRAME, release two frames later
 key() { printf '%d key %s 1\\n%d key %s 0\\n' "$2" "$1" $(($2 + 2)) "$1"; }
 
@@ -243,6 +243,15 @@ else
 fi
 check_cfg blank previous.cfg "^szImageName0 = .*disks/blank105\.sd" "it is SCSI disk 0"
 check_log blank "SCSI disk 0: Insert .*blank105\.sd" "the NeXT has it"
+# A disk on a USB stick (BMNEXT_USB: the folder usb/): Menu, Disks, SCSI
+# Disk 0, Insert a Disk Image (one down); the browser opens in disks/; up
+# to "[ Drives ]", the second drive (the stick) and its first file.
+mkdir -p "$OUT/usbdisk/disks" "$OUT/usbdisk/usb"
+dd if=/dev/zero of="$OUT/usbdisk/disks/card.img" bs=1024 count=1024 2>/dev/null
+dd if=/dev/zero of="$OUT/usbdisk/usb/stick.img" bs=1024 count=1024 2>/dev/null
+BMNEXT_USB=1 run usbdisk "" "$(key $F12 600)$(key $ENTER 610)$(key $ENTER 620)$(key $DOWN 640)$(key $ENTER 650)$(key $UP 680)$(key $ENTER 690)$(key $DOWN 710)$(key $ENTER 720)$(key $ENTER 740)$(key $F12 900)1200 quit\n"
+check_cfg usbdisk previous.cfg "^szImageName0 = .*usb/stick\.img" "a disk image on a USB stick, from the drives page"
+check_log usbdisk "SCSI disk 0: Insert .*usb/stick\.img" "the NeXT has it"
 
 echo "The network (SLiRP)"
 # Started from the network: the ROM asks for its address (BOOTP), which

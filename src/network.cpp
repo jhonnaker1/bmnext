@@ -3,7 +3,8 @@
 //
 // Modified for BMA800XL from BMC64's network start up (viceapp.cpp,
 // vice_network.cpp): rewritten to take its settings from cmdline.txt and
-// start the web UI and network time.
+// start the web UI and network time. The TCP receive window per network
+// is from BMC64's viceapp.cpp.
 // Changed for BMNeXT.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,6 +31,7 @@
 #include <circle/net/in.h>
 #include <circle/net/netsubsystem.h>
 #include <circle/net/socket.h>
+#include <circle/net/tcpconnection.h>
 #include <circle/netdevice.h>
 #include <circle/sched/task.h>
 #include <circle/string.h>
@@ -48,6 +50,12 @@ static const char FromNetwork[] = "network";
 #define HOSTNAME "bmnext"
 #define FIRMWARE_PATH "SD:/firmware/"
 #define WPA_CONFIG "SD:/wpa_supplicant.conf"
+// TCP receive window, in segments. A larger window nearly doubles web UI
+// upload speed over Wi-Fi, where each round trip is longer; 44 is the most
+// without window scaling. Ethernet keeps Circle's default of 10: the Pi 3's
+// USB Ethernet drops the end of larger bursts.
+#define WIFI_TCP_RECEIVE_WINDOW_SEGMENTS 44
+#define ETHERNET_TCP_RECEIVE_WINDOW_SEGMENTS 10
 
 static CNetSubSystem *s_net = 0;
 static CBcm4343Device *s_wlan = 0;
@@ -125,6 +133,14 @@ static bool HasWifiFirmware(void) {
   return true;
 }
 
+// Set before the network starts, so every TCP connection uses it.
+static void SetTcpReceiveWindow(unsigned segments, const char *network) {
+  CTCPConnection::SetReceiveWindow(segments);
+  CLogger::Get()->Write(FromNetwork, LogNotice,
+                        "TCP receive window: %u segments (%s)", segments,
+                        network);
+}
+
 static void StartServices(const Options *options) {
   StartNetworkTimeSync(s_net);
   if (options->GetBool("webui", true)) {
@@ -161,6 +177,7 @@ void NetworkInitialize(const Options *options) {
       return;
     }
     s_status = NETWORK_ETHERNET_INITIALIZING;
+    SetTcpReceiveWindow(ETHERNET_TCP_RECEIVE_WINDOW_SEGMENTS, "Ethernet");
     s_net = new CNetSubSystem(0, 0, 0, 0, HOSTNAME, NetDeviceTypeEthernet);
     if (!s_net->Initialize(FALSE)) {
       s_status = NETWORK_ETHERNET_INIT_FAILED;
@@ -197,6 +214,7 @@ void NetworkInitialize(const Options *options) {
     return;
   }
 
+  SetTcpReceiveWindow(WIFI_TCP_RECEIVE_WINDOW_SEGMENTS, "Wi-Fi");
   s_net = new CNetSubSystem(0, 0, 0, 0, HOSTNAME, NetDeviceTypeWLAN);
   if (!s_net->Initialize(FALSE)) {
     s_status = NETWORK_WIFI_NETWORK_INIT_FAILED;

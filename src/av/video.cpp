@@ -145,7 +145,7 @@ bool Pi4Video::Initialize(bool crt, bool smooth, bool curvature, Driver driver) 
   m_bFiltered = crt || smooth;
   bool ok;
   if (!m_bFiltered) {
-    // Sharp pixels: RGB565, what KEGS draws (so lines are copied as
+    // Sharp pixels: RGB565, what BMNeXT draws (so lines are copied as
     // they are), the size of the display; 32-bit is the fall back if the
     // firmware refuses it.
     static const unsigned depths[] = {16, 32};

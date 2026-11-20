@@ -3,7 +3,10 @@
 //
 // Modified for BMA800XL: protects the Atari emulator's configuration
 // files; BMC64's profile and keyboard map files are removed.
-// Changed for BMCoco and BMApple2, and BMAtariST, and for BMNeXT: the NeXT's files.
+// Changed for BMCoco, BMApple2 and BMAtariST, and for BMNeXT: the
+// NeXT's files. Uploads fill a 64 KB buffer before each SD write and log
+// their speed (BMA800XL). The USB sticks are volumes USB, USB2 and USB3
+// (paths "USB:/..."), while plugged in.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,13 +28,17 @@
 #include "webui_http.h"
 #include "webui_machine.h"
 
+#include <circle/logger.h>
 #include <circle/net/socket.h>
+#include <circle/netdevice.h>
 #include <circle/sched/scheduler.h>
+#include <circle/timer.h>
 #include <circle/types.h>
 
 #include <stdio.h>
 #include <string.h>
 
+#include "../host.h"
 #include "../sdcard/sd_fs.h"
 
 // Implemented in src/vice_network.cpp.
@@ -45,10 +52,18 @@ using webhttp::CChunkedResponse;
 namespace {
 
 const unsigned WEBUI_FS_MAX_ENTRIES = 6000;
-const unsigned WEBUI_FS_IO_CHUNK = 32 * 1024;
+// Uploads are collected into batches of this size before each SD write:
+// fewer, larger writes are much faster than one per TCP segment, and on a
+// Pi 3 a 64 KB write (about 11 ms) is short enough for the network to keep
+// up. Downloads read the card in pieces of this size too.
+const unsigned WEBUI_FS_IO_CHUNK = 64 * 1024;
 // Largest file the editor will open or save (the config files are a few KB;
 // the body is streamed to a temp file, so this is not a RAM limit).
 const unsigned WEBUI_FS_EDIT_MAX = 256 * 1024;
+
+// The USB sticks' volumes, as src/kernel.cpp mounts them; host_usb_stick()
+// says which are plugged in.
+const char *const kUsbVolumes[HOST_USB_STICKS] = {"USB", "USB2", "USB3"};
 
 // One request is handled at a time by the web UI task, so a single file
 // scratch buffer is safe and keeps it off the task stack.
@@ -209,22 +224,39 @@ int SanitizeRelPath(const char *in, char *out, unsigned out_size) {
   return 0;
 }
 
+// The part of a path from ResolveTarget inside its volume: after "USB:" on
+// a stick, all of it on the card.
+const char *InVolume(const char *clean) {
+  return clean[0] == '/' ? clean : strchr(clean, ':') + 1;
+}
+
 // Resolve and validate the vol/path query parameters. Returns 0 on
-// success and fills clean, a path on the card for sd_fs.h; on failure it has
-// already sent an error response and returns -1.
+// success and fills clean, a path for sd_fs.h: "/dir" on the card,
+// "USB:/dir" on a stick. On failure it has already sent an error response
+// and returns -1.
 int ResolveTarget(CSocket *socket, const char *query, char *clean,
                   unsigned clean_size, boolean require_file) {
   char vol[24];
   char raw[560];
   const char *disk = circle_get_disk_volume();
+  unsigned prefix = 0;
 
   if (!webhttp::QueryParam(query, "vol", vol, sizeof(vol)) || vol[0] == '\0') {
     strncpy(vol, disk, sizeof(vol) - 1);
     vol[sizeof(vol) - 1] = '\0';
   }
   if (strcmp(vol, disk) != 0) {
-    webhttp::SendText(socket, 404, "Not Found", "unknown volume\n");
-    return -1;
+    int stick = -1;
+    for (int i = 0; i < HOST_USB_STICKS; i++) {
+      if (strcmp(vol, kUsbVolumes[i]) == 0 && host_usb_stick(i) != 0) {
+        stick = i;
+      }
+    }
+    if (stick < 0) {
+      webhttp::SendText(socket, 404, "Not Found", "unknown volume\n");
+      return -1;
+    }
+    prefix = (unsigned) snprintf(clean, clean_size, "%s:", kUsbVolumes[stick]);
   }
   if (!webhttp::QueryParam(query, "path", raw, sizeof(raw))) {
     if (query != 0 &&
@@ -234,11 +266,11 @@ int ResolveTarget(CSocket *socket, const char *query, char *clean,
     }
     strcpy(raw, "/");
   }
-  if (SanitizeRelPath(raw, clean, clean_size) != 0) {
+  if (SanitizeRelPath(raw, clean + prefix, clean_size - prefix) != 0) {
     webhttp::SendText(socket, 400, "Bad Request", "bad path\n");
     return -1;
   }
-  if (require_file && strcmp(clean, "/") == 0) {
+  if (require_file && strcmp(InVolume(clean), "/") == 0) {
     webhttp::SendText(socket, 400, "Bad Request", "not a file\n");
     return -1;
   }
@@ -296,8 +328,9 @@ boolean IsEditablePath(const char *clean) {
 }
 
 // Uploads must not clobber the boot configuration or the Wi-Fi firmware
-// directory.
+// directory on the card.
 boolean IsProtectedPath(const char *clean) {
+  if (clean[0] != '/') return FALSE;
   const char *seg = clean;
   while (*seg == '/') seg++;
   const char *seg_end = seg;
@@ -378,25 +411,103 @@ BodyResult ReceiveBodyToFile(CSocket *socket, const char *temppath,
     written += prefetched_len;
   }
 
+  // Circle returns one TCP segment per Receive, so fill the whole buffer
+  // before writing: waiting on an empty queue (webhttp::Receive) lets the other
+  // tasks run, and the SD card gets a few large writes instead of many
+  // small ones (no task, including the network, runs during a write).
+  // A Receive into less space than the segment drops the rest of it, so
+  // only ask for more while a whole frame still fits (or the body ends).
+  // From BMC64's src/webui/webui_fs.cpp.
+  u64 start_ticks = CTimer::GetClockTicks64();
+  unsigned long batches = 0;
+  u64 wait_ticks = 0;
+  u64 write_ticks = 0;
+  u64 yield_ticks = 0;
+  // The longest single wait and the number of long ones tell a few long
+  // stalls (lost packets being resent) from a steady slow trickle.
+  u64 longest_wait_ticks = 0;
+  unsigned long long_waits = 0;
+  const u64 long_wait_limit = 100 * (CLOCKHZ / 1000);
   while (result == BODY_OK && written < total) {
-    unsigned long remain = total - written;
-    unsigned want = remain < sizeof(s_io_buffer) ? (unsigned) remain
-                                                 : sizeof(s_io_buffer);
-    int n = socket->Receive(s_io_buffer, want, 0);
-    if (n <= 0) {
-      result = BODY_TRUNCATED;
+    unsigned fill = 0;
+    for (;;) {
+      unsigned long remain = total - written - fill;
+      unsigned space = sizeof(s_io_buffer) - fill;
+      if (remain == 0 || (space < FRAME_BUFFER_SIZE && remain > space)) {
+        break;
+      }
+      unsigned want = remain < space ? (unsigned) remain : space;
+      u64 t0 = CTimer::GetClockTicks64();
+      int n = webhttp::Receive(socket, s_io_buffer + fill, want);
+      u64 waited = CTimer::GetClockTicks64() - t0;
+      wait_ticks += waited;
+      if (waited > longest_wait_ticks) {
+        longest_wait_ticks = waited;
+      }
+      if (waited >= long_wait_limit) {
+        long_waits++;
+      }
+      if (n <= 0) {
+        result = BODY_TRUNCATED;
+        CLogger::Get()->Write("webui", LogWarning,
+                              "Upload truncated at %lu of %lu bytes after "
+                              "%lu ms: Receive returned %d",
+                              written + fill, total,
+                              (unsigned long) ((CTimer::GetClockTicks64() - t0) /
+                                               (CLOCKHZ / 1000)),
+                              n);
+        break;
+      }
+      fill += (unsigned) n;
+    }
+    if (result != BODY_OK) {
       break;
     }
-    if (reject_nul && memchr(s_io_buffer, 0, (unsigned) n) != 0) {
+    if (reject_nul && memchr(s_io_buffer, 0, fill) != 0) {
       result = BODY_HAS_NUL;
       break;
     }
-    if (sd_write(file, s_io_buffer, (unsigned) n) != SD_OK) {
+    u64 t1 = CTimer::GetClockTicks64();
+    if (sd_write(file, s_io_buffer, fill) != SD_OK) {
       result = BODY_WRITE_FAILED;
       break;
     }
-    written += (unsigned) n;
+    u64 t2 = CTimer::GetClockTicks64();
+    write_ticks += t2 - t1;
+    written += fill;
+    batches++;
     CScheduler::Get()->Yield();
+    yield_ticks += CTimer::GetClockTicks64() - t2;
+  }
+
+  // Throughput for every upload. When something waited 100 ms or more, also
+  // the average batch size and where the time went: waiting for data (the
+  // network; other tasks also run while it waits), SD writes, or other tasks
+  // between batches. The serial log is written synchronously, so normal
+  // uploads get the short line.
+  if (result == BODY_OK && batches > 0 && long_waits == 0) {
+    const u64 per_ms = CLOCKHZ / 1000;
+    u64 ms = (CTimer::GetClockTicks64() - start_ticks) / per_ms;
+    CLogger::Get()->Write("webui", LogNotice,
+                          "Received %lu bytes in %lu ms (%lu KB/s)",
+                          total, (unsigned long) ms,
+                          ms > 0 ? (unsigned long) (total / ms) : 0UL);
+  } else if (result == BODY_OK && batches > 0) {
+    const u64 per_ms = CLOCKHZ / 1000;
+    u64 ms = (CTimer::GetClockTicks64() - start_ticks) / per_ms;
+    CLogger::Get()->Write("webui", LogNotice,
+                          "Received %lu bytes in %lu ms (%lu KB/s), "
+                          "%lu batches of %lu bytes avg; "
+                          "waiting %lu ms, SD writes %lu ms, other tasks %lu ms; "
+                          "longest wait %lu ms, %lu waits of 100 ms or more",
+                          total, (unsigned long) ms,
+                          ms > 0 ? (unsigned long) (total / ms) : 0UL,
+                          batches, (unsigned long) (total / batches),
+                          (unsigned long) (wait_ticks / per_ms),
+                          (unsigned long) (write_ticks / per_ms),
+                          (unsigned long) (yield_ticks / per_ms),
+                          (unsigned long) (longest_wait_ticks / per_ms),
+                          long_waits);
   }
 
   if (sd_close(file) != SD_OK && result == BODY_OK) {
@@ -487,6 +598,8 @@ int ListEntry(void *ctx, const sd_info *info) {
 
 }  // namespace
 
+// The card, then the sticks plugged in. A stick that can't be read (not
+// FAT) is listed without its size.
 void WebUiFsVolumes(CSocket *socket) {
   const char *vol = circle_get_disk_volume();
   uint32_t total_kb = 0;
@@ -495,11 +608,29 @@ void WebUiFsVolumes(CSocket *socket) {
 
   CChunkedResponse r(socket, 200, "OK", "application/json");
   r.Write("{\"volumes\":[");
+  boolean first = TRUE;
   if (rc == SD_OK) {
     r.Write("{\"id\":");
     JsonString(&r, vol);
     r.Printf(",\"kind\":\"sdcard\",\"total_kb\":%lu,\"free_kb\":%lu}",
              (unsigned long) total_kb, (unsigned long) free_kb);
+    first = FALSE;
+  }
+  for (int i = 0; i < HOST_USB_STICKS; i++) {
+    if (host_usb_stick(i) == 0) {
+      continue;
+    }
+    char root[8];
+    snprintf(root, sizeof(root), "%s:/", kUsbVolumes[i]);
+    r.Write(first ? "{\"id\":" : ",{\"id\":");
+    first = FALSE;
+    JsonString(&r, kUsbVolumes[i]);
+    r.Write(",\"kind\":\"usb\"");
+    if (sd_path_space_kb(root, &total_kb, &free_kb) == SD_OK) {
+      r.Printf(",\"total_kb\":%lu,\"free_kb\":%lu",
+               (unsigned long) total_kb, (unsigned long) free_kb);
+    }
+    r.Write("}");
   }
   r.Write("]}");
   r.Finish();
@@ -512,7 +643,7 @@ void WebUiFsList(CSocket *socket, const char *query) {
   }
 
   // The root always exists; anything else must be a folder.
-  if (strcmp(clean, "/") != 0) {
+  if (strcmp(InVolume(clean), "/") != 0) {
     sd_info info;
     int rc = sd_stat_info(clean, &info);
     if (rc == SD_NOT_FOUND || rc == SD_INVALID || (rc == SD_OK && !info.is_dir)) {
@@ -526,17 +657,24 @@ void WebUiFsList(CSocket *socket, const char *query) {
     }
   }
 
+  char vol[8];
+  if (clean[0] == '/') {
+    snprintf(vol, sizeof(vol), "%s", circle_get_disk_volume());
+  } else {
+    snprintf(vol, sizeof(vol), "%.*s", (int) (strchr(clean, ':') - clean), clean);
+  }
+
   CChunkedResponse r(socket, 200, "OK", "application/json");
   r.Write("{\"vol\":");
-  JsonString(&r, circle_get_disk_volume());
+  JsonString(&r, vol);
   r.Write(",\"path\":");
-  JsonString(&r, clean);
+  JsonString(&r, InVolume(clean));
   r.Write(",\"entries\":[");
 
   ListState state;
   state.r = &r;
   state.clean = clean;
-  state.at_root = strcmp(clean, "/") == 0;
+  state.at_root = strcmp(InVolume(clean), "/") == 0;
   state.first = TRUE;
   state.truncated = FALSE;
   state.count = 0;
@@ -939,10 +1077,12 @@ void WebUiFsAutostart(CSocket *socket, const char *query) {
   }
 
   // Runs later on the emulator core, through stdio, so it gets the path
-  // with the card's volume ("SD:/disks/x.po").
+  // with its volume ("SD:/disks/x.dmg", "USB:/disks/x.dmg").
   char volume_path[600];
-  if ((unsigned) snprintf(volume_path, sizeof(volume_path), "%s:%s",
-                          circle_get_disk_volume(), clean) >=
+  if ((unsigned) (clean[0] == '/'
+                      ? snprintf(volume_path, sizeof(volume_path), "%s:%s",
+                                 circle_get_disk_volume(), clean)
+                      : snprintf(volume_path, sizeof(volume_path), "%s", clean)) >=
       sizeof(volume_path)) {
     webhttp::SendText(socket, 400, "Bad Request", "path too long\n");
     return;

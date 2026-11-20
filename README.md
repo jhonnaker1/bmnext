@@ -20,9 +20,10 @@ BMNeXT wouldn't be possible without the work behind the open source
 projects it builds on. Thanks to their authors and contributors for making
 it available; see the [third-party](docs/THIRD_PARTY.md) acknowledgements.
 
-**Status: early.** BMNeXT boots the NeXT's ROMs and NeXTSTEP 3.3 in the PC
-simulator (`tools/hostsim`), and its kernels build, but it has not yet been
-run on a Raspberry Pi, and its speed there is not known.
+**Status:** on a Raspberry Pi 5, NeXTSTEP 3.3 and OPENSTEP 4.2 run at the
+real machines' speed or more, with sound, the network and the web UI, and
+the NeXTdimension board. The Pi 4 kernel builds and passes the same PC
+simulator tests (`tools/hostsim`), but hasn't been tried on a Pi 4 yet.
 
 - Emulates the NeXT Computer (68030), NeXTcube, NeXTcube Turbo, NeXTstation,
   NeXTstation Turbo, NeXTstation Color and NeXTstation Turbo Color, chosen in
@@ -40,7 +41,7 @@ run on a Raspberry Pi, and its speed there is not known.
   what it starts from, the mouse's speed, video, sound and network
 - Optional Ethernet or Wi-Fi with BMC64's web UI: manage the SD card from a
   browser and start disk images
-
+- Disk images on USB sticks (up to three) as well as the SD card
 - The NeXTdimension board (Raspberry Pi 5): the NeXTcube's 32-bit colour
   graphics board with its own Intel i860, which NeXTSTEP draws its
   desktop on (Machine, NeXTdimension Board; Video, Screen)

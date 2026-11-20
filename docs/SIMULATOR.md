@@ -164,6 +164,9 @@ Useful settings, as environment variables:
 | `BMNEXT_IP`                  | Pretend the network is up with this address (from frame 100) |
 | `BMNEXT_WIFI`                | Pretend Wi-Fi is running, with a few networks to choose from |
 | `BMNEXT_REFRESH_LATER`       | Change the display's refresh rate to this at frame 30      |
+| `BMNEXT_USB`                 | This many USB sticks plugged in from the start (the folders `usb/`, `usb2/`, `usb3/`); the script's `usb 1 1` plugs stick 1 in, `usb 1 0` pulls it out |
+| `BMNEXT_SIM_HELPER`          | `1`: a helper core (a thread), which the NeXTdimension's i860 runs on, as on the Pi 5 |
+| `BMNEXT_SIM_NO32`            | `1`: no 32-bit frame buffer, so the NeXTdimension's screen is RGB565 |
 
 ## On the Pi itself
 

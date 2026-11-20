@@ -9,8 +9,11 @@ import { openEditor } from "./editor.js";
 import { toggleMenu } from "./menu.js";
 import { canRun } from "./machine.js";
 
+// The SD card's volume; the USB sticks are "USB", "USB2" and "USB3".
+const SD_VOL = "SD";
+
 // current location (set by loadDir)
-let fbVol = "SD";
+let fbVol = SD_VOL;
 let fbPath = "/";
 let fbNames = new Set(); // file names in the current folder (for overwrite checks)
 
@@ -36,28 +39,38 @@ function fileIcon(name, isDir) {
   return FILE_ICONS[ext] || "•";
 }
 
-export function filesHash(path) {
+// "#/files/games" on the SD card, "#/files/USB:/games" on a stick (FAT
+// names have no ':').
+export function filesHash(path, vol = SD_VOL) {
   path = normPath(path);
-  if (path === "/") return "#/files";
-  return "#/files" + path.split("/").map(encodeURIComponent).join("/");
+  const drive = vol === SD_VOL ? "" : "/" + encodeURIComponent(vol) + ":";
+  if (path === "/") return "#/files" + (drive ? drive + "/" : "");
+  return "#/files" + drive + path.split("/").map(encodeURIComponent).join("/");
 }
 
-export function pathFromHash() {
+// The volume and path in the address.
+function locationFromHash() {
   const raw = (location.hash || "").slice("#/files".length);
-  if (!raw) return "/";
   try {
-    return normPath(raw.split("/").map(decodeURIComponent).join("/"));
+    const parts = raw.split("/").map(decodeURIComponent);
+    if (parts.length > 1 && parts[1].endsWith(":")) {
+      return { vol: parts[1].slice(0, -1), path: normPath(parts.slice(2).join("/")) };
+    }
+    return { vol: SD_VOL, path: normPath(parts.join("/")) };
   } catch (e) {
-    return "/";
+    return { vol: SD_VOL, path: "/" };
   }
 }
+
+export const pathFromHash = () => locationFromHash().path;
+export const volFromHash = () => locationFromHash().vol;
 
 function renderCrumbs(vol, path) {
   const box = $("fb-crumbs");
   box.textContent = "";
   const root = document.createElement("a");
-  root.href = filesHash("/");
-  root.textContent = vol || "SD";
+  root.href = filesHash("/", vol);
+  root.textContent = vol;
   box.appendChild(root);
 
   const parts = normPath(path).split("/").filter(Boolean);
@@ -75,7 +88,7 @@ function renderCrumbs(vol, path) {
       box.appendChild(cur);
     } else {
       const a = document.createElement("a");
-      a.href = filesHash(acc);
+      a.href = filesHash(acc, vol);
       a.textContent = seg;
       box.appendChild(a);
     }
@@ -133,35 +146,142 @@ function actionsButton(e, path) {
 // room for the seconds).
 const shortTime = (mtime) => mtime.slice(0, 16).replace("T", " ");
 
-export async function loadDir(path) {
+// ---- sorting ----
+
+// Each column's first direction: names A–Z, sizes and dates largest and
+// newest first (so new uploads come to the top).
+const SORT_FIRST_DIR = { name: 1, size: -1, mtime: -1 };
+const SORT_STORE = "bma800xl.files.sort";
+
+// Remembered in this browser only; any problem with storage just means
+// sorting by name.
+function loadSort() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SORT_STORE));
+    if (s && SORT_FIRST_DIR[s.key] && (s.dir === 1 || s.dir === -1)) return s;
+  } catch (e) {
+    /* no storage */
+  }
+  return { key: "name", dir: 1 };
+}
+
+let fbSort = loadSort();
+
+function setSort(key, dir) {
+  fbSort = { key, dir };
+  try {
+    localStorage.setItem(SORT_STORE, JSON.stringify(fbSort));
+  } catch (e) {
+    /* no storage */
+  }
+  showSort();
+  if (fbListing) renderListing();
+}
+
+// A header click sorts by that column, or turns the order round if it
+// already does.
+function sortBy(key) {
+  setSort(key, fbSort.key === key ? -fbSort.dir : SORT_FIRST_DIR[key]);
+}
+
+function showSort() {
+  for (const b of document.querySelectorAll(".fb-sort-h")) {
+    const on = b.dataset.sort === fbSort.key;
+    b.parentElement.setAttribute("aria-sort",
+      on ? (fbSort.dir === 1 ? "ascending" : "descending") : "none");
+    b.dataset.arrow = on ? (fbSort.dir === 1 ? "▲" : "▼") : "";
+  }
+  $("fb-sort").value = fbSort.key + ":" + fbSort.dir;
+}
+
+// Folders stay above files; within each, by the chosen column, then by name.
+function compareEntries(a, b) {
+  if (!!a.dir !== !!b.dir) return a.dir ? -1 : 1;
+  const byName = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+  let order = 0;
+  if (fbSort.key === "size") {
+    order = (a.size || 0) - (b.size || 0);
+  } else if (fbSort.key === "mtime") {
+    // "YYYY-MM-DDTHH:MM:SS" sorts as text; an unknown date as the oldest.
+    const x = a.mtime || "";
+    const y = b.mtime || "";
+    order = x < y ? -1 : x > y ? 1 : 0;
+  } else {
+    order = byName;
+  }
+  return order * fbSort.dir || byName;
+}
+
+// The folder last listed, kept so a new sort order needs no new listing.
+let fbListing = null;
+
+// ---- drives ----
+
+// The drives the device had when the page was loaded (or Refresh pressed).
+let fbDrives = [];
+
+async function loadDrives() {
+  try {
+    fbDrives = (await api.getVolumes()).volumes || [];
+  } catch (e) {
+    fbDrives = [];
+  }
+  renderDrives();
+}
+
+// The drives under Files in the sidebar, while there is more than one; the
+// one shown is highlighted while the Files page is open.
+function renderDrives() {
+  const box = $("nav-drives");
+  const onFiles = (location.hash || "").startsWith("#/files");
+  box.textContent = "";
+  box.hidden = fbDrives.length < 2;
+  for (const d of fbDrives) {
+    const a = document.createElement("a");
+    a.className = "nav-item nav-drive" + (onFiles && d.id === fbVol ? " on" : "");
+    a.href = filesHash("/", d.id);
+    a.textContent = d.kind === "sdcard" ? "SD card" : d.id;
+    box.appendChild(a);
+  }
+}
+
+// `vol` defaults to the one in the address, which is the one shown.
+export async function loadDir(path, vol = volFromHash()) {
   path = normPath(path);
+  fbVol = vol;
+  renderDrives();
   $("fb-up").disabled = path === "/";
   $("fb-status").className = "msg";
   $("fb-status").textContent = "Loading…";
   $("fb-rows").textContent = "";
+  fbListing = null;
 
   let data;
   try {
-    data = await api.listDir(path);
+    data = await api.listDir(vol, path);
   } catch (e) {
     $("fb-status").className = "msg err";
-    $("fb-status").textContent = "Could not list " + path + " — " + e.message;
+    $("fb-status").textContent = e.status === 404 && vol !== SD_VOL
+      ? vol + " is not plugged in."
+      : "Could not list " + path + " — " + e.message;
     return;
   }
 
-  const vol = data.vol || "SD";
-  fbVol = vol;
+  fbVol = data.vol || vol;
   fbPath = data.path || path;
-  renderCrumbs(vol, fbPath);
-  $("fb-drop-dest").textContent = fbPath;
+  renderCrumbs(fbVol, fbPath);
+  $("fb-drop-dest").textContent = (fbVol === SD_VOL ? "" : fbVol + ":") + fbPath;
+  fbListing = { data, path };
+  renderListing();
+}
 
-  const entries = (data.entries || []).slice().sort((a, b) => {
-    if (!!a.dir !== !!b.dir) return a.dir ? -1 : 1;
-    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-  });
+function renderListing() {
+  const { data, path } = fbListing;
+  const entries = (data.entries || []).slice().sort(compareEntries);
   fbNames = new Set(entries.filter((e) => !e.dir).map((e) => e.name));
 
   const tbody = $("fb-rows");
+  tbody.textContent = "";
   const frag = document.createDocumentFragment();
   for (const e of entries) {
     const childPath = normPath(path + "/" + e.name);
@@ -177,7 +297,7 @@ export async function loadDir(path) {
     let nm;
     if (e.dir) {
       nm = document.createElement("a");
-      nm.href = filesHash(childPath);
+      nm.href = filesHash(childPath, fbVol);
       nm.textContent = e.name;
     } else if (isRunnable(e.name)) {
       nm = nameLink(e.name, runVerb(e.name) + " " + e.name,
@@ -417,15 +537,30 @@ async function uploadFiles(fileList) {
 
 export function initFiles() {
   $("fb-up").addEventListener("click", () => {
-    location.hash = filesHash(parentPath(pathFromHash()));
+    location.hash = filesHash(parentPath(pathFromHash()), volFromHash());
   });
-  $("fb-refresh").addEventListener("click", () => loadDir(pathFromHash()));
+  $("fb-refresh").addEventListener("click", () => {
+    loadDrives();
+    loadDir(pathFromHash());
+  });
+  loadDrives();
+  window.addEventListener("hashchange", renderDrives);
   $("fb-mkdir").addEventListener("click", makeFolder);
   $("fb-upload").addEventListener("change", (e) => uploadFiles(e.target.files));
   $("fb-drop-file").addEventListener("change", (e) => uploadFiles(e.target.files));
 
   dropTarget($("fb-drop"));
   dropTarget($("fb-card"));
+
+  for (const b of document.querySelectorAll(".fb-sort-h")) {
+    b.type = "button";
+    b.addEventListener("click", () => sortBy(b.dataset.sort));
+  }
+  $("fb-sort").addEventListener("change", (e) => {
+    const [key, dir] = e.target.value.split(":");
+    setSort(key, Number(dir));
+  });
+  showSort();
 }
 
 // Files dropped on `el` upload to the current folder. Only file drags are

@@ -2,7 +2,7 @@
  * host_sim.c - runs the BMNeXT emulator port on a PC for testing.
  *
  * Implements src/host.h with a simulated display, sound output and input,
- * so KEGS and the port in src/port/ can be tested without a Raspberry Pi.
+ * so Previous and the port in src/port/ can be tested without a Raspberry Pi.
  * Time is virtual: each display refresh advances the clock by one frame of
  * a 60 Hz (or BMNEXT_REFRESH Hz) display, so tests run as fast as the PC
  * allows.
@@ -15,6 +15,8 @@
  *   <frame> axis <n> <x> <y>       gamepad n's analog stick (0-65535, -1 none)
  *   <frame> gpio <port> <bits>     GPIO joystick port to HOST_JOY_* bits
  *   <frame> mouse <dx> <dy> <buttons>  the mouse moves (buttons: bit 0 left)
+ *   <frame> usb <1-3> <0|1>        pull out or plug in USB stick 1-3 (usb/,
+ *                                  usb2/, usb3/)
  *   <frame> shot <file.ppm>        save the visible screen
  *   <frame> audio                  print audio statistics
  *   <frame> webui <reboot|coldstart>  a request from the web UI
@@ -498,6 +500,36 @@ int host_pad_axis(int pad, int axis)
 
 int host_gpio_joystick(int port) { return port >= 0 && port < 2 ? gpio[port] : 0; }
 
+/* The USB sticks are the folders usb/, usb2/ and usb3/ in the test's
+   directory. BMNEXT_USB=N has the first N plugged in from the start; the
+   script's "usb" command plugs one in or pulls it out (from BMA800XL). */
+static unsigned usb_stick[HOST_USB_STICKS];
+static unsigned usb_sticks;
+static int usb_started;
+
+static void usb_start(void)
+{
+	const char *env = getenv("BMNEXT_USB");
+	int n, count = env ? atoi(env) : 0;
+	if (usb_started)
+		return;
+	usb_started = 1;
+	for (n = 0; n < count && n < HOST_USB_STICKS; n++)
+		usb_stick[n] = ++usb_sticks;
+}
+
+unsigned host_usb_stick(int n)
+{
+	usb_start();
+	return n >= 0 && n < HOST_USB_STICKS ? usb_stick[n] : 0;
+}
+
+const char *host_usb_root(int n)
+{
+	static const char *const root[HOST_USB_STICKS] = {"usb/", "usb2/", "usb3/"};
+	return n >= 0 && n < HOST_USB_STICKS ? root[n] : NULL;
+}
+
 int host_mouse_read(int *dx, int *dy, int *buttons)
 {
 	if (!mouse_seen)
@@ -637,6 +669,14 @@ static void run_script(void)
 			gpio[port & 1] = bits;
 		} else if (strcmp(cmd, "run") == 0) {
 			emu_autostart_interrupt(line + n + 1);
+		} else if (strcmp(cmd, "usb") == 0) {
+			int stick, in;
+			if (sscanf(line + n, "%d %d", &stick, &in) != 2 || stick < 1 || stick > HOST_USB_STICKS) {
+				fprintf(stderr, "[sim] invalid usb command: %s\n", line);
+				exit(1);
+			}
+			usb_start();
+			usb_stick[stick - 1] = in ? ++usb_sticks : 0;
 		} else if (strcmp(cmd, "shot") == 0) {
 			screenshot(line + n + 1);
 		} else if (strcmp(cmd, "webui") == 0) {

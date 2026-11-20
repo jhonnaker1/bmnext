@@ -81,7 +81,7 @@ public:
   // bilinear sampling); curvature: crt-pi's curved screen (with crt only).
   void SetMode(bool crt, bool smooth, bool curvature);
 
-  // The source is RGB565 (what BMNeXT draws, from KEGS), SRC_PITCH pixels
+  // The source is RGB565 (what BMNeXT draws, the NeXT's screen), SRC_PITCH pixels
   // per line; the part shown starts at (VX, VY) and is VW x VH; it is drawn
   // DW x DH. Returns false if out of memory.  (BMA800XL's source is 8-bit
   // indexed, with a palette.)

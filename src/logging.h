@@ -1,7 +1,7 @@
 //
 // logging.h
 //
-// Where the log (Circle's logger and stdio, so KEGS's messages too)
+// Where the log (Circle's logger and stdio, so Previous's messages too)
 // goes: the serial port (UART), the serial port and /bmnext.log on the
 // SD card (file), or nowhere.
 // Set with enable_logging=off|uart|file, as in BMC64, or in the menu.

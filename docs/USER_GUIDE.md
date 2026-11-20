@@ -5,8 +5,8 @@ BMNeXT turns a Raspberry Pi 4 or 5 into a NeXT: the NeXT Computer (the
 It runs the Previous emulator on the bare hardware, so it starts in a couple
 of seconds and can be switched off at any time.
 
-BMNeXT is new: it has been tested in the PC simulator, not yet on a
-Raspberry Pi. How fast NeXTSTEP runs on a Pi is not known yet.
+On a Raspberry Pi 5, NeXTSTEP 3.3 and OPENSTEP 4.2 run at the real
+machines' speed or more. The Pi 4 kernel hasn't been tried on a Pi 4 yet.
 
 ## The SD card
 
@@ -47,8 +47,8 @@ Disks); then it starts from that disk.
 
 - **SCSI Disk 0 to 6**: each a hard disk, a CD-ROM or a floppy drive, with
   a disk image. NeXTSTEP and OPENSTEP are installed on a hard disk image
-  (a raw image of the whole disk), of at most 2 GB on the Pi (the C library
-  BMNeXT uses can't go further into a file). Inserting a hard disk in SCSI
+  (a raw image of the whole disk), of at most 4 GB on the Pi (the most a
+  file on a FAT32 card or stick can be). Inserting a hard disk in SCSI
   disk 0 also makes the NeXT start from it (*Machine*, *Boot*, *Start From*
   chooses otherwise).
 - **Optical Drive 0, 1**: the NeXT Computer's magneto-optical drives, with
@@ -56,6 +56,14 @@ Disks); then it starts from that disk.
 - **Floppy Drive**: the 2.88 MB floppy drive of the 68040 machines.
 
 Changing a hard disk restarts the NeXT.
+
+**USB sticks.** Disk images can be on a USB stick (FAT32 or FAT16), up to
+three at once. While a stick is plugged in, the menu's file browser has a
+**[ Drives ]** entry, and `..` above a drive's top folder goes to it: a
+page with the SD card and each stick (*USB stick 1 (USB:)*, *2 (USB2:)*,
+*3 (USB3:)*). A disk on a stick is used from it, as from the card, so
+leave the stick in while the NeXT uses the disk: pulling it out is like
+pulling a disk out of a running NeXT. The web UI shows the sticks too.
 
 **Blank disks**: *Create a Blank Hard Disk...* (in a SCSI disk's menu) and
 *Create a Blank Disk...* (the floppy drive's) make an empty disk image in
@@ -160,7 +168,7 @@ for its desktop. There is one display, so *Video*,
 - *NeXT*: always the NeXT's own MegaPixel Display
 - *NeXTdimension*: always the board's
 
-For now:
+Notes:
 
 - The board's i860 has a Pi core of its own (core 3), and keeps up with
   the real board's 33 MHz. While the i860 only waits for work, BMNeXT
@@ -169,8 +177,8 @@ For now:
 - The board's screen is shown in its full 24-bit colour, except with
   the CRT look (`crt_shader=1`), which draws in 16 bits a pixel (65536
   colours): smooth shades may show bands then.
-- Not on the Pi 4: its cores are too slow for the i860 (the menu item is
-  not there).
+- Not on the Pi 4: the i860 needs a Pi 5 core of its own, and a Pi 4's
+  cores are too slow for it (the menu item is not there).
 
 ## Display
 
@@ -247,7 +255,9 @@ The web UI has:
   Down** (the Pi halts; switch it off, then on again to restart; a Pi 400
   switches itself off, and its power key starts it again), and **Disable
   Web UI** until the next reboot.
-- **Files**: browse the SD card; upload (or drag and drop) files into a
+- **Files**: browse the SD card and USB sticks (a button for each drive,
+  while a stick is plugged in; reload the page after plugging one in);
+  upload (or drag and drop) files into a
   folder, download, rename, delete, and create folders. Clicking a disk
   image (`.dsk`, `.img`, `.dd`, `.hd`, `.raw`) **starts it**: it becomes
   the NeXT's first SCSI hard disk and the NeXT starts from it. `cmdline.txt`, `config.txt`,
@@ -299,6 +309,7 @@ Previous's settings, `previous.cfg`, which the menu changes.
 | `webui_pin`         | digits                       | none     | PIN for the web UI |
 | `timezone`          | minutes east of UTC          | `0`      | Time zone for the network clock |
 | `usbpowerdelay`     | milliseconds                 | Circle's | Circle: wait for USB devices to power up (by default 300 ms, 510 ms behind a hub) |
+| `task_time_us`      | microseconds                 | `1000`   | The least time the network, Wi-Fi and the web UI get each frame; `0` is one turn a frame |
 
 ## Logging
 

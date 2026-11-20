@@ -40,7 +40,7 @@ BMApple2, and so BMNeXT, is based on [BMCoco](https://github.com/jhonnaker1/bmco
 
 ## BMA800XL
 
-BMCoco, and so BMNeXT, is a fork of [BMA800XL](https://github.com/aminch/bma800xl), the bare metal Atari 800XL emulator for the Raspberry Pi, under the GNU General Public License version 3. Its kernel, display, sound, network and web UI code is used here, including its Raspberry Pi 4 and Pi 5 display, sound and GPU drivers, merged up to BMA800XL 1.4.2.
+BMCoco, and so BMNeXT, is a fork of [BMA800XL](https://github.com/aminch/bma800xl), the bare metal Atari 800XL emulator for the Raspberry Pi, under the GNU General Public License version 3. Its kernel, display, sound, network and web UI code is used here, including its Raspberry Pi 4 and Pi 5 display, sound and GPU drivers, its Pi 5 fan control and its USB sticks, merged up to BMA800XL 1.4.6 (without its Updater, USB paddles, Trak-ball and R: device).
 
 ## circle-stdlib
 
